@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Book</title>
+    
+    <!-- 关键修改 1: 立即执行 -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('app_theme');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            
+            const activeFont = localStorage.getItem('active_font_name');
+            if (activeFont && activeFont !== 'Default') {
+                document.documentElement.style.setProperty('--font-main', `'${activeFont}', sans-serif`);
+            }
+            
+            const fonts = JSON.parse(localStorage.getItem('custom_fonts')) || [];
+            if (fonts.length > 0) {
+                let css = '';
+                fonts.forEach(f => { css += `@font-face { font-family: '${f.name}'; src: url('${f.url}'); }`; });
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+            }
+        })();
+    </script>
+
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* --- 基础变量 --- */
@@ -26,7 +49,8 @@
             --font-main: 'Courier New', Courier, monospace;
         }
 
-        body.light-mode {
+        /* 关键修改 2: html.light-mode */
+        html.light-mode {
             --bg-color: #f4f4f4;
             --paper-bg: #fff;
             --paper-highlight: #f0f0f0;
@@ -50,7 +74,7 @@
             font-family: var(--font-main);
             overflow: hidden;
             display: flex; flex-direction: column; height: 100vh;
-            transition: background 0.5s, color 0.3s;
+            /* transition: background 0.5s, color 0.3s; */ /* 移除过渡以防闪烁 */
             position: relative;
         }
 
@@ -278,6 +302,39 @@
             transform: rotate(2deg);
         }
 
+        /* --- 内部系统弹窗样式 --- */
+        .sys-dialog-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(3px);
+        }
+        .sys-dialog-overlay.active { opacity: 1; pointer-events: all; }
+
+        .sys-dialog-box {
+            width: 85%; background: var(--paper-bg);
+            border: 2px solid var(--text-main); border-radius: 15px;
+            padding: 20px; text-align: center; color: var(--text-main);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.2s;
+        }
+        .sys-dialog-overlay.active .sys-dialog-box { transform: scale(1); }
+
+        .sys-dialog-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .sys-dialog-msg { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; }
+
+        .sys-dialog-btns { display: flex; gap: 10px; justify-content: center; }
+        .sys-btn {
+            flex: 1; padding: 10px; border: 1px solid var(--border-color);
+            background: transparent; color: var(--text-main); border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .sys-btn:hover { background: var(--text-main); color: var(--bg-color); }
+        .sys-btn.danger { border-color: #a00; color: #a00; }
+        .sys-btn.danger:hover { background: #a00; color: #fff; }
+
     </style>
     <style id="custom-font-style"></style>
 </head>
@@ -285,37 +342,36 @@
 
     <div class="header-title" id="page-title">PRESETS</div>
 
-    <div class="grid-container" id="grid">
-        <!-- JS 生成 -->
-    </div>
+    <div class="grid-container" id="grid"></div>
 
     <!-- 主界面书签开关 -->
     <div class="bookmark-toggle" id="mode-toggle-btn" onclick="toggleMode()">
         <i class="fas fa-star bookmark-icon"></i>
     </div>
 
+    <!-- 内部弹窗 -->
+    <div class="sys-dialog-overlay" id="sys-dialog">
+        <div class="sys-dialog-box">
+            <div class="sys-dialog-title" id="sys-title">Alert</div>
+            <div class="sys-dialog-msg" id="sys-msg">Message</div>
+            <div class="sys-dialog-btns">
+                <button class="sys-btn" onclick="closeSysDialog()">CANCEL</button>
+                <button class="sys-btn danger" id="sys-btn-confirm">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 1. 主编辑器 (Book Editor) -->
     <div class="notebook-overlay" id="editor">
-        
         <div class="desc-banner" id="desc-banner">
-            <div class="desc-header">
-                <span class="desc-label">Synopsis</span>
-                <span class="desc-close-x" onclick="toggleDesc(false)">×</span>
-            </div>
+            <div class="desc-header"><span class="desc-label">Synopsis</span><span class="desc-close-x" onclick="toggleDesc(false)">×</span></div>
             <textarea class="desc-textarea" id="book-desc" placeholder="Brief description..."></textarea>
         </div>
-
         <div class="notebook-paper">
             <i class="fas fa-star desc-star-btn" onclick="toggleDesc(true)"></i>
-
             <input type="text" class="editor-title" id="book-title" placeholder="Book Title...">
-
-            <div class="chapter-list-container" id="chapter-list">
-                <!-- JS 生成章节项 -->
-            </div>
-            
+            <div class="chapter-list-container" id="chapter-list"></div>
             <div class="add-chapter-btn" onclick="addNewChapter()">+ New Chapter</div>
-
             <div class="editor-actions">
                 <button class="btn btn-delete" onclick="deleteBook()">Delete Book</button>
                 <button class="btn" onclick="saveBook()">Save All</button>
@@ -327,48 +383,54 @@
     <!-- 2. 章节编辑器 (草稿纸弹窗) -->
     <div class="chapter-modal-overlay" id="chapter-modal">
         <div class="draft-paper">
-            <div class="draft-header">
-                <input type="text" class="draft-title-input" id="draft-title" placeholder="Chapter Title">
-                <span class="draft-close-btn" onclick="closeChapterEditor()">×</span>
-            </div>
+            <div class="draft-header"><input type="text" class="draft-title-input" id="draft-title" placeholder="Chapter Title"><span class="draft-close-btn" onclick="closeChapterEditor()">×</span></div>
             <textarea class="draft-content" id="draft-content" placeholder="Start writing..."></textarea>
-            <div class="draft-save-area">
-                <button class="draft-save-btn" onclick="saveCurrentChapter()">Finish Draft</button>
-            </div>
+            <div class="draft-save-area"><button class="draft-save-btn" onclick="saveCurrentChapter()">Finish Draft</button></div>
         </div>
     </div>
 
     <script>
-        // --- 1. 外观同步 ---
+        // --- 1. 后续同步逻辑 (保留以应对运行时的变化) ---
         function syncAppearance() {
             const theme = localStorage.getItem('app_theme');
-            if (theme === 'light') document.body.classList.add('light-mode');
-            else document.body.classList.remove('light-mode');
-
-            const fonts = JSON.parse(localStorage.getItem('custom_fonts')) || [];
-            const activeFont = localStorage.getItem('active_font_name');
-            
-            let css = '';
-            fonts.forEach(f => { css += `@font-face { font-family: '${f.name}'; src: url('${f.url}'); }`; });
-            const styleTag = document.getElementById('custom-font-style');
-            if (styleTag.textContent !== css) styleTag.textContent = css;
-
-            const root = document.documentElement;
-            if (activeFont && activeFont !== 'Default') root.style.setProperty('--font-main', `'${activeFont}', sans-serif`);
-            else root.style.setProperty('--font-main', "'Courier New', Courier, monospace");
+            // 关键修改 3: 操作 documentElement 而不是 body
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            else document.documentElement.classList.remove('light-mode');
         }
-        syncAppearance();
         window.addEventListener('storage', syncAppearance);
         setInterval(syncAppearance, 500);
 
-        // --- 2. 核心数据逻辑 ---
+        // --- 2. 内部弹窗逻辑 ---
+        let confirmCallback = null;
+        function showConfirm(msg, onConfirm, title = "CONFIRMATION", isDanger = true) {
+            const dialog = document.getElementById('sys-dialog');
+            document.getElementById('sys-title').textContent = title;
+            document.getElementById('sys-msg').textContent = msg;
+            const confirmBtn = document.getElementById('sys-btn-confirm');
+            if(isDanger) {
+                confirmBtn.classList.add('danger');
+                confirmBtn.innerText = "DELETE"; 
+            } else {
+                confirmBtn.classList.remove('danger');
+                confirmBtn.innerText = "OK";
+            }
+            confirmCallback = onConfirm;
+            dialog.classList.add('active');
+        }
+        function closeSysDialog() {
+            document.getElementById('sys-dialog').classList.remove('active');
+            confirmCallback = null;
+        }
+        document.getElementById('sys-btn-confirm').onclick = function() {
+            if (confirmCallback) confirmCallback();
+            closeSysDialog();
+        };
+
+        // --- 3. 核心数据逻辑 ---
         let currentMode = 'presets'; 
         let editingBookIndex = -1;
         let editingChapterIndex = -1;
-
-        // 数据结构: { title, desc, chapters: [ {title, content, active: true} ] }
         let activeBookData = { title: "", desc: "", chapters: [] };
-
         const STORAGE_KEYS = { presets: 'wb_data_presets', settings: 'wb_data_settings' };
 
         function getData() { return JSON.parse(localStorage.getItem(STORAGE_KEYS[currentMode])) || []; }
@@ -378,7 +440,6 @@
             const btn = document.getElementById('mode-toggle-btn');
             const title = document.getElementById('page-title');
             const body = document.body;
-            
             if (currentMode === 'presets') {
                 currentMode = 'settings';
                 btn.classList.add('active');
@@ -399,14 +460,12 @@
             const grid = document.getElementById('grid');
             const data = getData();
             grid.innerHTML = '';
-
             const addBtn = document.createElement('div');
             addBtn.className = 'card add-btn';
             addBtn.style.transform = `rotate(${Math.random() * 4 - 2}deg)`;
             addBtn.onclick = () => openEditor(-1);
             addBtn.innerHTML = `<i class="fas fa-pen-fancy card-icon"></i><span class="card-title">New Book</span>`;
             grid.appendChild(addBtn);
-
             data.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
@@ -417,7 +476,6 @@
             });
         }
 
-        // --- 3. 主编辑器逻辑 ---
         const editor = document.getElementById('editor');
         const titleInput = document.getElementById('book-title');
         const descInput = document.getElementById('book-desc');
@@ -427,7 +485,6 @@
         function openEditor(index) {
             editingBookIndex = index;
             const data = getData();
-            
             if (index === -1) {
                 activeBookData = { title: "", desc: "", chapters: [] };
             } else {
@@ -442,11 +499,9 @@
                     activeBookData = JSON.parse(JSON.stringify(loaded));
                 }
             }
-
             titleInput.value = activeBookData.title;
             descInput.value = activeBookData.desc || "";
             renderChapters();
-            
             descBanner.classList.remove('show');
             editor.classList.add('active');
         }
@@ -468,20 +523,13 @@
                 return;
             }
             activeBookData.chapters.forEach((chap, idx) => {
-                // 如果 active 属性不存在，默认为 true
                 const isActive = chap.active !== false; 
-                
                 const div = document.createElement('div');
                 div.className = `chapter-item ${isActive ? '' : 'inactive'}`;
-                
                 div.innerHTML = `
                     <span class="chapter-name" onclick="openChapterEditor(${idx})">${idx + 1}. ${chap.title || 'Untitled'}</span>
-                    
                     <div class="chapter-controls">
-                        <input type="checkbox" class="chapter-checkbox" 
-                            ${isActive ? 'checked' : ''} 
-                            onchange="toggleChapterActive(${idx}, this)">
-                        
+                        <input type="checkbox" class="chapter-checkbox" ${isActive ? 'checked' : ''} onchange="toggleChapterActive(${idx}, this)">
                         <i class="fas fa-trash-alt chapter-del" onclick="deleteChapter(${idx})"></i>
                     </div>
                 `;
@@ -491,7 +539,7 @@
 
         function toggleChapterActive(idx, checkbox) {
             activeBookData.chapters[idx].active = checkbox.checked;
-            renderChapters(); // 重新渲染以更新标题样式(变灰/删除线)
+            renderChapters();
         }
 
         function addNewChapter() {
@@ -501,7 +549,7 @@
         }
 
         function deleteChapter(idx) {
-            window.parent.showConfirm("Delete this chapter permanently?", () => {
+            showConfirm("Delete this chapter permanently?", () => {
                 activeBookData.chapters.splice(idx, 1);
                 renderChapters();
             }, "DELETE CHAPTER");
@@ -510,31 +558,22 @@
         function saveBook() {
             const title = titleInput.value.trim();
             if (!title) { alert("Please write a book title!"); return; }
-            
             activeBookData.title = title;
             activeBookData.desc = descInput.value;
-
             const allData = getData();
-            if (editingBookIndex === -1) allData.push(activeBookData);
-            else allData[editingBookIndex] = activeBookData;
-
-            saveData(allData);
-            closeEditor();
+            if (editingBookIndex === -1) allData.push(activeBookData); else allData[editingBookIndex] = activeBookData;
+            saveData(allData); closeEditor();
         }
 
         function deleteBook() {
             if (editingBookIndex === -1) { closeEditor(); return; }
-            
-            // 新代码
-            window.parent.showConfirm("Delete this entire book?\nThis cannot be undone.", () => {
+            showConfirm("Delete this entire book?\nThis cannot be undone.", () => {
                 const data = getData();
                 data.splice(editingBookIndex, 1);
-                saveData(data); 
-                closeEditor();
+                saveData(data); closeEditor();
             }, "DELETE BOOK");
         }
 
-        // --- 4. 章节编辑器逻辑 ---
         const chapterModal = document.getElementById('chapter-modal');
         const draftTitle = document.getElementById('draft-title');
         const draftContent = document.getElementById('draft-content');
@@ -547,15 +586,12 @@
             chapterModal.classList.add('active');
         }
 
-        function closeChapterEditor() {
-            chapterModal.classList.remove('active');
-        }
+        function closeChapterEditor() { chapterModal.classList.remove('active'); }
 
         function saveCurrentChapter() {
             if (editingChapterIndex > -1) {
                 activeBookData.chapters[editingChapterIndex].title = draftTitle.value;
                 activeBookData.chapters[editingChapterIndex].content = draftContent.value;
-                // 保存时不改变 active 状态
                 renderChapters();
             }
             closeChapterEditor();

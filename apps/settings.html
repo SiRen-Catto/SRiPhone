@@ -4,6 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Character Settings</title>
+    
+    <!-- 关键修改 1: 在所有 CSS 之前立即执行主题和字体同步 -->
+    <script>
+        (function() {
+            // 1. 同步主题
+            const theme = localStorage.getItem('app_theme');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            
+            // 2. 同步字体
+            const activeFont = localStorage.getItem('active_font_name');
+            if (activeFont && activeFont !== 'Default') {
+                document.documentElement.style.setProperty('--font-mono', `'${activeFont}', sans-serif`);
+            }
+            
+            // 3. 注入自定义字体 CSS
+            const fonts = JSON.parse(localStorage.getItem('custom_fonts')) || [];
+            if (fonts.length > 0) {
+                let css = '';
+                fonts.forEach(f => { css += `@font-face { font-family: '${f.name}'; src: url('${f.url}'); }`; });
+                const style = document.createElement('style');
+                style.id = 'custom-font-style-head';
+                style.textContent = css;
+                document.head.appendChild(style);
+            }
+        })();
+    </script>
+
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* --- 1. 基础变量与主题 --- */
@@ -20,7 +47,8 @@
             --font-mono: 'Courier New', Courier, monospace;
         }
 
-        body.light-mode {
+        /* 关键修改 2: 选择器改为 html.light-mode，使其立即生效 */
+        html.light-mode {
             --bg-color: #f4f4f4;
             --paper-bg: #ffffff;
             --text-main: #111;
@@ -40,7 +68,8 @@
             height: 100vh;
             overflow: hidden;
             display: flex; flex-direction: column;
-            transition: background 0.3s;
+            /* 移除 transition: background，防止初始加载时的过渡动画 */
+            /* transition: background 0.3s; */ 
         }
 
         /* --- 2. 顶部导航 --- */
@@ -115,7 +144,7 @@
             background-size: cover; background-position: center;
             overflow: hidden;
         }
-        .light-mode .char-avatar { background-color: #ddd; color: #333; }
+        html.light-mode .char-avatar { background-color: #ddd; color: #333; }
         .char-name { font-size: 0.7rem; font-weight: bold; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 90%; }
 
         /* --- 4. 账单/收据弹窗 --- */
@@ -181,24 +210,15 @@
             font-family: inherit; 
             font-size: 0.8rem; 
             padding: 5px;
-            
-            /* 1. 高度加长 (原60px -> 120px) */
             height: 120px; 
-            
             resize: none; 
             outline: none; 
             margin-top: 5px;
-
-            /* 2. 隐藏滚动条但允许滚动 */
             overflow-y: auto;
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
-        
-        /* 针对 Chrome/Safari 隐藏滚动条 */
-        .form-textarea::-webkit-scrollbar {
-            display: none;
-        }
+        .form-textarea::-webkit-scrollbar { display: none; }
         
         .img-preview-box {
             width: 100%; height: 80px; background: #ddd; border: 1px dashed #999;
@@ -226,37 +246,61 @@
             position: absolute; top: 10px; right: 10px; font-size: 1.2rem; cursor: pointer; color: #444;
         }
 
-        /* --- 5. 多选下拉列表样式 (新) --- */
-        .dropdown-container {
-            flex: 1; position: relative;
-        }
+        /* --- 5. 多选下拉列表样式 --- */
+        .dropdown-container { flex: 1; position: relative; }
         .dropdown-header {
-            border-bottom: 1px solid #999;
-            padding: 2px 5px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #999; padding: 2px 5px; font-size: 0.9rem;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
         }
         .dropdown-header:hover { background: rgba(0,0,0,0.05); }
         .dropdown-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
         .dropdown-list {
-            display: none;
-            position: absolute; top: 100%; left: 0; width: 100%;
+            display: none; position: absolute; top: 100%; left: 0; width: 100%;
             background: #f0f0f0; border: 1px dashed #999;
-            max-height: 150px; overflow-y: auto;
-            z-index: 50; box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+            max-height: 150px; overflow-y: auto; z-index: 50; box-shadow: 0 5px 10px rgba(0,0,0,0.2);
         }
         .dropdown-list.active { display: block; }
         .dropdown-item {
             padding: 8px; border-bottom: 1px dotted #ccc;
-            font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
-            cursor: pointer;
+            font-size: 0.8rem; display: flex; align-items: center; gap: 8px; cursor: pointer;
         }
         .dropdown-item:hover { background: #e0e0e0; }
         .dropdown-item input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
-        .count-badge {
-            background: #000; color: #fff; font-size: 0.7rem; padding: 1px 5px; border-radius: 2px;
+        .count-badge { background: #000; color: #fff; font-size: 0.7rem; padding: 1px 5px; border-radius: 2px; }
+
+        /* --- 6. 内部系统弹窗样式 --- */
+        .sys-dialog-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(3px);
         }
+        .sys-dialog-overlay.active { opacity: 1; pointer-events: all; }
+
+        .sys-dialog-box {
+            width: 85%; background: var(--paper-bg);
+            border: 2px solid var(--text-main); border-radius: 15px;
+            padding: 20px; text-align: center; color: var(--text-main);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.2s;
+        }
+        .sys-dialog-overlay.active .sys-dialog-box { transform: scale(1); }
+
+        .sys-dialog-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .sys-dialog-msg { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; }
+
+        .sys-dialog-btns { display: flex; gap: 10px; justify-content: center; }
+        .sys-btn {
+            flex: 1; padding: 10px; border: 1px solid var(--border-color);
+            background: transparent; color: var(--text-main); border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .sys-btn:hover { background: var(--text-main); color: var(--bg-color); }
+        .sys-btn.danger { border-color: #a00; color: #a00; }
+        .sys-btn.danger:hover { background: #a00; color: #fff; }
+
     </style>
 </head>
 <body>
@@ -264,44 +308,37 @@
     <!-- 顶部 -->
     <div class="header">
         <div class="title">SETTINGS</div>
-        
-        <!-- 用户头像区域 (无齿轮版) -->
         <div class="user-profile-area" onclick="openUserModal()">
             <div class="avatar-wrapper">
-                <div class="user-avatar-small" id="header-user-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
-                <!-- 小红点装饰 -->
+                <div class="user-avatar-small" id="header-user-avatar"><i class="fas fa-user"></i></div>
                 <div class="user-icon-decor"></div>
             </div>
         </div>
     </div>
 
     <!-- 列表区域 -->
-    <div class="grid-container" id="char-grid">
-        <!-- 动态内容 -->
+    <div class="grid-container" id="char-grid"></div>
+
+    <!-- 内部弹窗 -->
+    <div class="sys-dialog-overlay" id="sys-dialog">
+        <div class="sys-dialog-box">
+            <div class="sys-dialog-title" id="sys-title">Alert</div>
+            <div class="sys-dialog-msg" id="sys-msg">Message</div>
+            <div class="sys-dialog-btns">
+                <button class="sys-btn" onclick="closeSysDialog()">CANCEL</button>
+                <button class="sys-btn danger" id="sys-btn-confirm">CONFIRM</button>
+            </div>
+        </div>
     </div>
 
-    <!-- 弹窗 -->
+    <!-- 编辑弹窗 -->
     <div id="receipt-modal" class="modal-overlay">
         <div class="receipt-paper">
             <div class="close-modal-x" onclick="closeModal()">×</div>
-            
-            <div class="receipt-header">
-                <div class="receipt-title" id="modal-title">INVOICE</div>
-            </div>
-
-            <!-- 图片预览 -->
-            <div class="img-preview-box" id="modal-img-preview">
-                <span>NO IMAGE</span>
-            </div>
-
-            <div id="modal-content-form">
-                <!-- 表单内容 -->
-            </div>
-
+            <div class="receipt-header"><div class="receipt-title" id="modal-title">INVOICE</div></div>
+            <div class="img-preview-box" id="modal-img-preview"><span>NO IMAGE</span></div>
+            <div id="modal-content-form"></div>
             <div class="barcode"></div>
-
             <div class="btn-group">
                 <button class="receipt-btn delete" id="btn-delete" style="display:none;" onclick="deleteCurrent()">VOID</button>
                 <button class="receipt-btn" onclick="saveCurrent()">CONFIRM</button>
@@ -310,17 +347,44 @@
     </div>
 
     <script>
-        // --- 1. 初始化 ---
+        // --- 1. 后续同步逻辑 (保留以应对运行时的变化) ---
         function syncTheme() {
             const theme = localStorage.getItem('app_theme');
-            if (theme === 'light') document.body.classList.add('light-mode');
-            else document.body.classList.remove('light-mode');
+            // 关键修改 3: 操作 documentElement 而不是 body
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            else document.documentElement.classList.remove('light-mode');
         }
         window.addEventListener('storage', syncTheme);
+        // 保险起见
         setInterval(syncTheme, 1000); 
-        syncTheme();
 
-        // --- 2. 数据 ---
+        // --- 2. 内部弹窗逻辑 ---
+        let confirmCallback = null;
+        function showConfirm(msg, onConfirm, title = "CONFIRMATION", isDanger = true) {
+            const dialog = document.getElementById('sys-dialog');
+            document.getElementById('sys-title').textContent = title;
+            document.getElementById('sys-msg').textContent = msg;
+            const confirmBtn = document.getElementById('sys-btn-confirm');
+            if(isDanger) {
+                confirmBtn.classList.add('danger');
+                confirmBtn.innerText = "DELETE"; 
+            } else {
+                confirmBtn.classList.remove('danger');
+                confirmBtn.innerText = "OK";
+            }
+            confirmCallback = onConfirm;
+            dialog.classList.add('active');
+        }
+        function closeSysDialog() {
+            document.getElementById('sys-dialog').classList.remove('active');
+            confirmCallback = null;
+        }
+        document.getElementById('sys-btn-confirm').onclick = function() {
+            if (confirmCallback) confirmCallback();
+            closeSysDialog();
+        };
+
+        // --- 3. 数据 ---
         let characters = JSON.parse(localStorage.getItem('saved_characters')) || [];
         let userSettings = JSON.parse(localStorage.getItem('user_settings')) || { name: 'Admin', bio: '神秘的操作者', avatarUrl: '' };
         let currentEditIndex = -1;
@@ -334,7 +398,6 @@
         const imgPreview = document.getElementById('modal-img-preview');
         const headerUserAvatar = document.getElementById('header-user-avatar');
 
-        // 更新顶部用户头像
         function updateUserHeader() {
             if (userSettings.avatarUrl) {
                 headerUserAvatar.style.backgroundImage = `url('${userSettings.avatarUrl}')`;
@@ -346,10 +409,8 @@
         }
         updateUserHeader();
 
-        // --- 3. 渲染列表 ---
         function renderGrid() {
             grid.innerHTML = '';
-            
             const addBtn = document.createElement('div');
             addBtn.className = 'card add-btn';
             addBtn.innerHTML = '<i class="fas fa-plus"></i>';
@@ -359,147 +420,64 @@
             characters.forEach((char, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                
-                let avatarHtml = '';
-                if (char.avatarUrl) {
-                    avatarHtml = `<div class="char-avatar" style="background-image: url('${char.avatarUrl}')"></div>`;
-                } else {
-                    const firstLetter = char.name ? char.name[0].toUpperCase() : '?';
-                    avatarHtml = `<div class="char-avatar">${firstLetter}</div>`;
-                }
-
-                card.innerHTML = `
-                    ${avatarHtml}
-                    <div class="char-name">${char.name}</div>
-                `;
+                let avatarHtml = char.avatarUrl ? `<div class="char-avatar" style="background-image: url('${char.avatarUrl}')"></div>` : `<div class="char-avatar">${char.name ? char.name[0].toUpperCase() : '?'}</div>`;
+                card.innerHTML = `${avatarHtml}<div class="char-name">${char.name}</div>`;
                 card.onclick = () => openCharModal(index);
                 grid.appendChild(card);
             });
         }
 
-        // --- 4. 弹窗逻辑 ---
-        
-        // 获取世界书数据 (倒十字模式 - settings)
         function getWorldBookData() {
-            return JSON.parse(localStorage.getItem('wb_data_settings')) || [];
+            const sBooks = JSON.parse(localStorage.getItem('wb_data_settings')) || [];
+            const pBooks = JSON.parse(localStorage.getItem('wb_data_presets')) || [];
+            return [...sBooks, ...pBooks];
         }
 
         function generateInput(label, id, value = '', type = 'text', onInput = '') {
-            return `
-                <div class="form-group">
-                    <div class="form-label">${label}</div>
-                    <input type="${type}" id="${id}" class="form-input" value="${value}" autocomplete="off" oninput="${onInput}">
-                </div>
-            `;
+            return `<div class="form-group"><div class="form-label">${label}</div><input type="${type}" id="${id}" class="form-input" value="${value}" autocomplete="off" oninput="${onInput}"></div>`;
         }
 
-        // 生成世界书多选下拉框
         function generateBookSelector(currentValue = '') {
             const books = getWorldBookData();
-            // 当前选中的书 (逗号分隔字符串转数组)
             const selectedBooks = currentValue ? currentValue.split(',').map(s => s.trim()) : [];
-            
             let listHtml = '';
-            if (books.length === 0) {
-                listHtml = '<div class="dropdown-item" style="color:#888; font-style:italic;">No World Books (Settings) Found</div>';
-            } else {
+            if (books.length === 0) listHtml = '<div class="dropdown-item" style="color:#888; font-style:italic;">No World Books Found</div>';
+            else {
                 books.forEach(book => {
                     const isChecked = selectedBooks.includes(book.title);
-                    listHtml += `
-                        <label class="dropdown-item" onclick="event.stopPropagation()">
-                            <input type="checkbox" value="${book.title}" onchange="updateBookSelection()" ${isChecked ? 'checked' : ''}>
-                            <span>${book.title || 'Untitled'}</span>
-                        </label>
-                    `;
+                    listHtml += `<label class="dropdown-item" onclick="event.stopPropagation()"><input type="checkbox" value="${book.title}" onchange="updateBookSelection()" ${isChecked ? 'checked' : ''}><span>${book.title || 'Untitled'}</span></label>`;
                 });
             }
-
             const countText = selectedBooks.length > 0 ? `${selectedBooks.length} Selected` : 'Select Books...';
-
-            return `
-                <div class="form-group">
-                    <div class="form-label">BOOK</div>
-                    <div class="dropdown-container">
-                        <div class="dropdown-header" onclick="toggleBookDropdown()">
-                            <span id="book-display-text">${countText}</span>
-                            <i class="fas fa-chevron-down" style="font-size:0.7rem"></i>
-                        </div>
-                        <div class="dropdown-list" id="book-dropdown-list">
-                            ${listHtml}
-                        </div>
-                        <!-- 隐藏的 input 用于存储最终值 -->
-                        <input type="hidden" id="inp-book" value="${currentValue}">
-                    </div>
-                </div>
-            `;
+            return `<div class="form-group"><div class="form-label">BOOK</div><div class="dropdown-container"><div class="dropdown-header" onclick="toggleBookDropdown()"><span id="book-display-text">${countText}</span><i class="fas fa-chevron-down" style="font-size:0.7rem"></i></div><div class="dropdown-list" id="book-dropdown-list">${listHtml}</div><input type="hidden" id="inp-book" value="${currentValue}"></div></div>`;
         }
 
-        function toggleBookDropdown() {
-            const list = document.getElementById('book-dropdown-list');
-            list.classList.toggle('active');
-        }
-
+        function toggleBookDropdown() { document.getElementById('book-dropdown-list').classList.toggle('active'); }
         function updateBookSelection() {
             const checkboxes = document.querySelectorAll('#book-dropdown-list input[type="checkbox"]');
             const selected = [];
-            checkboxes.forEach(cb => {
-                if (cb.checked) selected.push(cb.value);
-            });
-
-            const displayText = document.getElementById('book-display-text');
-            const hiddenInput = document.getElementById('inp-book');
-
-            // 更新显示文本
-            if (selected.length === 0) {
-                displayText.textContent = "Select Books...";
-            } else {
-                displayText.innerHTML = `<span class="count-badge">${selected.length}</span> Selected`;
-            }
-
-            // 更新隐藏值 (以逗号分隔保存)
-            hiddenInput.value = selected.join(',');
+            checkboxes.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+            document.getElementById('book-display-text').innerHTML = selected.length === 0 ? "Select Books..." : `<span class="count-badge">${selected.length}</span> Selected`;
+            document.getElementById('inp-book').value = selected.join(',');
         }
-
-        // 点击外部关闭下拉框
         document.addEventListener('click', function(e) {
             const container = document.querySelector('.dropdown-container');
-            if (container && !container.contains(e.target)) {
-                const list = document.getElementById('book-dropdown-list');
-                if (list) list.classList.remove('active');
-            }
+            if (container && !container.contains(e.target)) document.getElementById('book-dropdown-list')?.classList.remove('active');
         });
 
-        // 实时预览图片
         window.previewImage = function(url) {
-            if (url) {
-                imgPreview.innerHTML = `<img src="${url}" onerror="this.style.display='none';this.parentNode.innerHTML='<span>INVALID URL</span>'">`;
-            } else {
-                imgPreview.innerHTML = `<span>NO IMAGE</span>`;
-            }
+            imgPreview.innerHTML = url ? `<img src="${url}" onerror="this.style.display='none';this.parentNode.innerHTML='<span>INVALID URL</span>'">` : `<span>NO IMAGE</span>`;
         }
 
         function openCharModal(index) {
             isEditingUser = false;
             currentEditIndex = index;
             modal.classList.add('active');
-
             let data = index === -1 ? { name:'', sex:'', birth:'', book:'', desc:'', avatarUrl:'' } : characters[index];
-            
             modalTitle.textContent = index === -1 ? "NEW ENTRY" : "EDIT DATA";
             btnDelete.style.display = index === -1 ? 'none' : 'block';
-            
             previewImage(data.avatarUrl);
-
-            // 修改：BOOK 字段使用 generateBookSelector
-            modalForm.innerHTML = `
-                ${generateInput('NAME', 'inp-name', data.name)}
-                ${generateInput('AVATAR', 'inp-avatar', data.avatarUrl, 'text', 'previewImage(this.value)')}
-                ${generateInput('SEX', 'inp-sex', data.sex)}
-                ${generateInput('BIRTH', 'inp-birth', data.birth, 'date')}
-                ${generateBookSelector(data.book)} 
-                <div style="font-size:0.75rem; font-weight:bold; margin-top:10px;">DESCRIPTION:</div>
-                <textarea id="inp-desc" class="form-textarea">${data.desc || ''}</textarea>
-            `;
+            modalForm.innerHTML = `${generateInput('NAME', 'inp-name', data.name)}${generateInput('AVATAR', 'inp-avatar', data.avatarUrl, 'text', 'previewImage(this.value)')}${generateInput('SEX', 'inp-sex', data.sex)}${generateInput('BIRTH', 'inp-birth', data.birth, 'date')}${generateBookSelector(data.book)}<div style="font-size:0.75rem; font-weight:bold; margin-top:10px;">DESCRIPTION:</div><textarea id="inp-desc" class="form-textarea">${data.desc || ''}</textarea>`;
         }
 
         function openUserModal() {
@@ -507,30 +485,17 @@
             modal.classList.add('active');
             modalTitle.textContent = "USER PROFILE";
             btnDelete.style.display = 'none';
-            
             previewImage(userSettings.avatarUrl);
-
-            modalForm.innerHTML = `
-                ${generateInput('NAME', 'inp-name', userSettings.name)}
-                ${generateInput('AVATAR', 'inp-avatar', userSettings.avatarUrl, 'text', 'previewImage(this.value)')}
-                <div style="font-size:0.75rem; font-weight:bold; margin-top:10px;">BIO / NOTE:</div>
-                <textarea id="inp-desc" class="form-textarea">${userSettings.bio || ''}</textarea>
-                <div style="margin-top:10px; font-size:0.7rem; color:#666; font-style:italic;">* System Administrator Settings</div>
-            `;
+            modalForm.innerHTML = `${generateInput('NAME', 'inp-name', userSettings.name)}${generateInput('AVATAR', 'inp-avatar', userSettings.avatarUrl, 'text', 'previewImage(this.value)')}<div style="font-size:0.75rem; font-weight:bold; margin-top:10px;">BIO / NOTE:</div><textarea id="inp-desc" class="form-textarea">${userSettings.bio || ''}</textarea><div style="margin-top:10px; font-size:0.7rem; color:#666; font-style:italic;">* System Administrator Settings</div>`;
         }
 
-        function closeModal() {
-            modal.classList.remove('active');
-        }
+        function closeModal() { modal.classList.remove('active'); }
 
-        // --- 5. 保存 ---
         function saveCurrent() {
             const name = document.getElementById('inp-name').value;
             const avatarUrl = document.getElementById('inp-avatar').value;
             const desc = document.getElementById('inp-desc').value;
-
             if (!name) { alert('Name is required!'); return; }
-
             if (isEditingUser) {
                 userSettings = { name, bio: desc, avatarUrl };
                 localStorage.setItem('user_settings', JSON.stringify(userSettings));
@@ -538,17 +503,9 @@
             } else {
                 const sex = document.getElementById('inp-sex').value;
                 const birth = document.getElementById('inp-birth').value;
-                
-                // 获取隐藏 input 的值 (逗号分隔的字符串)
                 const book = document.getElementById('inp-book').value;
-
                 const charData = { name, sex, birth, book, desc, avatarUrl };
-
-                if (currentEditIndex === -1) {
-                    characters.push(charData);
-                } else {
-                    characters[currentEditIndex] = charData;
-                }
+                if (currentEditIndex === -1) characters.push(charData); else characters[currentEditIndex] = charData;
                 localStorage.setItem('saved_characters', JSON.stringify(characters));
                 renderGrid();
             }
@@ -557,9 +514,7 @@
 
         function deleteCurrent() {
             if (isEditingUser) return;
-            
-            // 新代码
-            window.parent.showConfirm("Delete this character record?", () => {
+            showConfirm("Delete this character record?", () => {
                 characters.splice(currentEditIndex, 1);
                 localStorage.setItem('saved_characters', JSON.stringify(characters));
                 renderGrid();
