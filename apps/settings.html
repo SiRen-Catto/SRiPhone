@@ -557,12 +557,14 @@
 
         function deleteCurrent() {
             if (isEditingUser) return;
-            if (confirm('Delete this character record?')) {
+            
+            // 新代码
+            window.parent.showConfirm("Delete this character record?", () => {
                 characters.splice(currentEditIndex, 1);
                 localStorage.setItem('saved_characters', JSON.stringify(characters));
                 renderGrid();
                 closeModal();
-            }
+            }, "DELETE CHARACTER");
         }
 
         renderGrid();

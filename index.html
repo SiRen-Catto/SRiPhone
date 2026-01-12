@@ -380,6 +380,44 @@
         .song-item { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; cursor: pointer; display: flex; justify-content: space-between;}
         .song-item:hover { background: #333; }
         .song-item.active { color: #4cd964; font-weight: bold; }
+        /* --- 系统通用弹窗 (System Dialog) --- */
+        .sys-dialog-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 20000; /* 必须最高 */
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(3px);
+        }
+        .sys-dialog-overlay.active { opacity: 1; pointer-events: all; }
+
+        .sys-dialog-box {
+            width: 80%; background: var(--paper-dark);
+            border: 2px solid var(--text-main); border-radius: 15px;
+            padding: 20px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .sys-dialog-overlay.active .sys-dialog-box { transform: scale(1); }
+
+        .sys-dialog-title {
+            font-size: 1.1rem; font-weight: bold; margin-bottom: 10px;
+            text-transform: uppercase; letter-spacing: 1px; color: var(--text-main);
+        }
+        .sys-dialog-msg {
+            font-size: 0.9rem; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4;
+        }
+
+        .sys-dialog-btns { display: flex; gap: 10px; justify-content: center; }
+        .sys-btn {
+            flex: 1; padding: 10px; border: 1px solid var(--border-color);
+            background: transparent; color: var(--text-main); border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .sys-btn:hover { background: var(--text-main); color: var(--bg-color); }
+        .sys-btn.danger { border-color: #a00; color: #a00; }
+        .sys-btn.danger:hover { background: #a00; color: #fff; }
+    
     </style>
 </head>
 <body>
@@ -573,9 +611,64 @@
                 </div>
             </div>
         </div>
+        <!-- 系统通用弹窗 -->
+        <div class="sys-dialog-overlay" id="sys-dialog">
+            <div class="sys-dialog-box">
+                <div class="sys-dialog-title" id="sys-title">SYSTEM ALERT</div>
+                <div class="sys-dialog-msg" id="sys-msg">Are you sure?</div>
+                <div class="sys-dialog-btns">
+                    <button class="sys-btn" id="sys-btn-cancel" onclick="closeSysDialog()">CANCEL</button>
+                    <button class="sys-btn danger" id="sys-btn-confirm">CONFIRM</button>
+                </div>
+            </div>
+        </div>
+    
     </div>
 
     <script>
+        // --- 全局系统弹窗逻辑 ---
+        let confirmCallback = null;
+
+        /**
+         * 显示确认弹窗
+         * @param {string} msg - 提示消息
+         * @param {function} onConfirm - 点击确认后的回调函数
+         * @param {string} title - (可选) 标题
+         * @param {boolean} isDanger - (可选) 是否为危险操作(红色按钮)
+         */
+        window.showConfirm = function(msg, onConfirm, title = "CONFIRMATION", isDanger = true) {
+            const dialog = document.getElementById('sys-dialog');
+            document.getElementById('sys-title').textContent = title;
+            document.getElementById('sys-msg').textContent = msg;
+            
+            const confirmBtn = document.getElementById('sys-btn-confirm');
+            
+            // 设置样式
+            if(isDanger) {
+                confirmBtn.classList.add('danger');
+                confirmBtn.textContent = "DELETE";
+            } else {
+                confirmBtn.classList.remove('danger');
+                confirmBtn.textContent = "OK";
+            }
+
+            // 存储回调
+            confirmCallback = onConfirm;
+            
+            dialog.classList.add('active');
+        };
+
+        // 绑定确认按钮点击事件
+        document.getElementById('sys-btn-confirm').addEventListener('click', function() {
+            if (confirmCallback) confirmCallback();
+            closeSysDialog();
+        });
+
+        window.closeSysDialog = function() {
+            document.getElementById('sys-dialog').classList.remove('active');
+            confirmCallback = null;
+        };
+        
         // --- 应用配置表：名字对应文件名 ---
         const appRoutes = {
             'Whatsapp': 'apps/whatsapp.html',
@@ -930,11 +1023,13 @@
 
         function deleteSong(index, e) {
             e.stopPropagation();
-            if (confirm('Delete song?')) {
+            
+            // 因为就在本页面，直接调用 showConfirm，不需要 window.parent
+            showConfirm(`Remove "${playlist[index].name}" from library?`, () => {
                 playlist.splice(index, 1);
                 localStorage.setItem('my_playlist', JSON.stringify(playlist));
                 renderPlaylist();
-            }
+            }, "REMOVE SONG");
         }
 
         initPlayer();

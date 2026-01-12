@@ -501,10 +501,10 @@
         }
 
         function deleteChapter(idx) {
-            if(confirm("Delete this chapter?")) {
+            window.parent.showConfirm("Delete this chapter permanently?", () => {
                 activeBookData.chapters.splice(idx, 1);
                 renderChapters();
-            }
+            }, "DELETE CHAPTER");
         }
 
         function saveBook() {
@@ -524,11 +524,14 @@
 
         function deleteBook() {
             if (editingBookIndex === -1) { closeEditor(); return; }
-            if (confirm("Delete this entire book?")) {
+            
+            // 新代码
+            window.parent.showConfirm("Delete this entire book?\nThis cannot be undone.", () => {
                 const data = getData();
                 data.splice(editingBookIndex, 1);
-                saveData(data); closeEditor();
-            }
+                saveData(data); 
+                closeEditor();
+            }, "DELETE BOOK");
         }
 
         // --- 4. 章节编辑器逻辑 ---
