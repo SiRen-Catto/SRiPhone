@@ -68,7 +68,7 @@
         }
 
         .phone-container {
-            width: 380px; height: 770px; background-color: var(--phone-case); border-radius: 40px; padding: 8px;
+            width: 380px; height: 770px; background-color: var(--phone-case); border-radius: 42px; padding: 8px;
             box-shadow: 0 0 0 2px #000, 0 20px 50px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,0,0,0.05);
             position: relative; display: flex; flex-direction: column; border: 4px solid var(--phone-border);
         }
@@ -137,9 +137,8 @@
         .app-placeholder { color: var(--text-dim); font-style: italic; text-align: center; margin-top: 50px; }
 
         /* 桌面组件 */
-        .header-widget { text-align: center; padding: 40px 20px 20px; position: relative; flex-shrink: 0; }
-        .paper-tape { background-color: rgba(128,128,128,0.15); width: 80px; height: 20px; position: absolute; top: 10px; left: 50%; transform: translateX(-50%) rotate(-2deg); backdrop-filter: blur(2px); z-index: 1; border: 1px solid rgba(0,0,0,0.1); }
-        .clock-card { background-color: var(--paper-dark); padding: 15px; border: 1px dashed var(--border-color); display: inline-block; transform: rotate(1deg); box-shadow: 3px 3px 0px var(--shadow-color); border-radius: 4px; }
+        .header-widget { text-align: center; padding: 55px 20px 10px; position: relative; flex-shrink: 0; }
+        .clock-card { background-color: var(--paper-dark); padding: 10px 30px; border: 3px dashed var(--border-color); display: inline-block; transform: rotate(1deg); box-shadow: 3px 3px 0px var(--shadow-color); border-radius: 4px; }
         .time { font-size: 2.5rem; font-weight: bold; letter-spacing: 2px; color: var(--text-main); }
         .date { font-size: 0.9rem; color: var(--text-dim); margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 5px; font-weight: bold; }
 
@@ -374,67 +373,9 @@
     <div class="phone-container">
         <div class="screen">
             <div id="error-toast" class="error-toast"><i class="fas fa-exclamation-triangle"></i><span id="error-msg">连接失败</span></div>
-            <!-- ========================= -->
-            <!-- 灵动岛 Pro (Dynamic Notch) -->
-            <!-- ========================= -->
-            <div class="notch-container" id="dynamic-island" onclick="handleIslandClick(event)">
-                
-                <!-- 1. 收起状态：Mini 播放器 -->
-                <div class="notch-mini">
-                    <img class="mini-cover" id="mini-cover" src="" alt="cover">
-                    <div class="mini-waveform">
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                    </div>
-                </div>
-
-                <!-- 2. 展开状态：完整控制器 -->
-                <div class="island-content">
-                    <!-- 上部：封面与信息 -->
-                    <div class="island-top">
-                        <img class="album-art-large" id="music-cover" src="" alt="cover">
-                        <div class="song-info">
-                            <div class="song-title" id="music-title">No Music</div>
-                            <div class="song-artist" id="music-artist">Select a song</div>
-                        </div>
-                    </div>
-
-                    <!-- 进度条 -->
-                    <div class="progress-area">
-                        <div class="time-text" id="curr-time">0:00</div>
-                        <div class="progress-bg" onclick="seekAudio(event)">
-                            <div class="progress-fill" id="music-progress"></div>
-                        </div>
-                        <div class="time-text" id="total-time">0:00</div>
-                    </div>
-
-                    <!-- 底部：控制按钮 -->
-                    <div class="controls-row">
-                        <i class="fas fa-list control-btn" style="font-size:1rem; color:#e2e2e2" onclick="toggleMusicModal(event)"></i>
-                        
-                        <div class="main-controls">
-                            <i class="fas fa-backward control-btn" onclick="prevSong(event)"></i>
-                            <i class="fas fa-play control-btn play-pause-btn" id="play-btn" onclick="togglePlay(event)"></i>
-                            <i class="fas fa-forward control-btn" onclick="nextSong(event)"></i>
-                        </div>
-                        
-                        <!-- 占位，保持中间居中 -->
-                        <div style="width:1rem;"></div>
-                    </div>
-
-                    <!-- 底部收起指示条 -->
-                    <div class="drag-handle"></div>
-                </div>
-            </div>
 
             <!-- 音乐列表弹窗 -->
             <div class="music-modal" id="music-modal">
-                <div class="modal-header">
-                    <span>LIBRARY</span>
-                    <span style="cursor:pointer" onclick="toggleMusicModal(event)">CLOSE</span>
-                </div>
                 <div class="input-group">
                     <input type="text" id="add-music-name" class="music-input" placeholder="Name">
                     <input type="text" id="add-music-url" class="music-input" placeholder="MP3 URL">
@@ -448,9 +389,6 @@
                 </div>
             </div>
                         
-            <!-- 隐藏的音频元素 -->
-            <audio id="global-audio"></audio>
-
             <!-- 1. 桌面视图 -->
             <div id="desktop-view" class="view-layer">
                 
@@ -461,7 +399,6 @@
                 </div>
 
                 <div class="header-widget">
-                    <div class="paper-tape"></div>
                     <div class="clock-card"><div class="time" id="clock-time">00:00</div><div class="date" id="clock-date">2024.01.01 MON</div></div>
                 </div>
                 
@@ -866,11 +803,8 @@
             e.stopPropagation(); // 防止浏览器打开链接等
             return false;
         }
-
         // --- 启动初始化 ---
-        // 放在 window.onload 或者脚本最后
         setTimeout(initDesktopIcons, 100); 
-
     </script>
     <script src="others/tutorial.js"></script>
     <script src="others/pendant.js"></script>
