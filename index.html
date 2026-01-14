@@ -144,26 +144,49 @@
 
         /* --- 修改开始：邮票风格图标 & 编辑模式 --- */
         
-        /* 1. 编辑控制栏 */
+        /* 1. 编辑控制栏 - 移至屏幕底端 */
         .edit-controls {
-            position: absolute;
-            top: 80px; left: 0; width: 100%;
-            display: flex; justify-content: center; gap: 20px;
+            position: fixed;
+            bottom: 10px; left: 50%; transform: translateX(-50%);
+            display: flex; justify-content: center; gap: 12px; align-items: center;
             z-index: 100;
-            opacity: 0; pointer-events: none; transform: translateY(-20px);
-            transition: 0.3s;
+            opacity: 0; pointer-events: none; transform: translateX(-50%) scale(0.9);
+            transition: 0.3s ease;
+            background: rgba(0, 0, 0, 0.7); 
+            padding: 8px 12px; border-radius: 20px;
+            backdrop-filter: blur(8px);
         }
-        .edit-controls.active { opacity: 1; pointer-events: all; transform: translateY(0); }
+        .edit-controls.active { 
+            opacity: 1; pointer-events: all; transform: translateX(-50%) scale(1);
+        }
         .edit-btn {
-            width: 40px; height: 40px; border-radius: 50%;
-            border: 2px solid #fff; color: #fff;
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 1.5px solid #fff; color: #fff;
             display: flex; justify-content: center; align-items: center;
-            font-size: 1.2rem; cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            background: #222;
+            font-size: 0.9rem; cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            background: #222; transition: 0.2s;
+            flex-shrink: 0;
         }
+        .edit-btn:active { transform: scale(0.95); }
         .edit-btn.save { background: #5cc976; border-color: #28a745; }
         .edit-btn.cancel { background: #d4747e; border-color: #dc3545; }
+        .edit-btn.reset { background: #4a90e2; border-color: #2e5c99; }
+
+        /* 编辑模式下的样式调整 */
+        body.is-editing .app-item { transform: scale(0.93); opacity: 0.85; }
+        body.is-editing .header-widget { opacity: 0.5; }
+        
+        /* 移动端编辑控制栏适配 */
+        @media (max-width: 480px) {
+            .edit-controls {
+                bottom: 85px; gap: 8px; padding: 6px 10px;
+            }
+            .edit-btn {
+                width: 32px; height: 32px; font-size: 0.8rem;
+                border-width: 1px;
+            }
+        }
 
         /* 2. 邮票/贴纸风格 APP 图标 */
         .app-grid { 
@@ -256,35 +279,6 @@
         .app-item:hover .app-icon { color: var(--text-main); }
         .app-name { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; font-family: 'Courier New', Courier, monospace; letter-spacing: -0.5px; }
         .app-item:hover .app-name { color: var(--text-main); }
-        
-
-        /* 3. 编辑模式动画 (iOS 抖动风格) */
-        @keyframes jiggle {
-            0% { transform: rotate(-1deg); }
-            50% { transform: rotate(1deg); }
-            100% { transform: rotate(-1deg); }
-        }
-        
-        .app-item.editing {
-            animation: jiggle 0.25s infinite ease-in-out;
-            border-color: var(--text-main);
-            border-style: solid;
-            cursor: grab;
-            background: var(--paper-dark);
-            z-index: 50;
-        }
-        .app-item.editing:active { cursor: grabbing; transform: scale(1.1); }
-        
-        /* 拖拽时的样式 */
-        .app-item.dragging {
-            opacity: 0.5;
-            border: 2px dashed #fff;
-        }
-
-        /* 隐藏原本的头部 (当编辑模式开启时) */
-        body.is-editing .header-widget { opacity: 0; pointer-events: none; transition: 0.2s; }
-        
-        /* --- 修改结束 --- */
 
         /* 底部 Dock */
         .dock-bar { height: 75px; background-color: var(--bg-color); border-top: 2px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; padding: 8px 10px 0 10px; z-index: 30; border-radius: 0 0 35px 35px; }
@@ -296,6 +290,30 @@
         /* 模态框 */
         .error-toast { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); background-color: var(--error-bg); color: var(--error-text); padding: 10px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 200; transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 8px; z-index: 10002; border: 2px solid #fff; }
         .error-toast.show { top: 20px; }
+
+        /* 统一通知系统 */
+        #info-notification { 
+            position: fixed; top: -80px; left: 50%; transform: translateX(-50%); 
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.95));
+            color: #7897cc; padding: 12px 22px; border-radius: 8px; 
+            font-size: 0.85rem; font-weight: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            z-index: 10003; transition: top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; gap: 10px; 
+            backdrop-filter: blur(10px); border: 3px solid rgba(104, 104, 104, 0.2);
+            max-width: 90%;
+        }
+        #info-notification.show { top: 15px; }
+        #info-notification.error { 
+            background: linear-gradient(135deg, rgba(255, 80, 80, 0.95), rgba(255, 60, 60, 0.95));
+        }
+        #info-notification.warning { 
+            background: linear-gradient(135deg, rgba(255, 150, 80, 0.95), rgba(255, 130, 60, 0.95));
+        }
+        #info-notification.success { 
+            background: linear-gradient(135deg, rgba(80, 200, 120, 0.95), rgba(60, 180, 100, 0.95));
+        }
+        #info-notification i { font-size: 1rem; }
 
         .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); z-index: 50; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         .modal.active { opacity: 1; pointer-events: all; }
@@ -324,8 +342,90 @@
         .font-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s; }
         .font-item.active { background: var(--paper-light); border-left: 3px solid var(--text-main); }
         .delete-font-btn { color: var(--text-dim); padding: 5px 10px; cursor: pointer; }
-        .api-row { display: flex; gap: 10px; align-items: flex-end; }
-        .api-row .input-group { flex: 1; margin-bottom: 0; }
+        /* API 设置模态框样式 */
+        .api-presets-section {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .api-preset-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .api-preset-input-row input {
+            flex: 1;
+        }
+        .api-preset-btn {
+            flex: 0 0 auto;
+        }
+        .api-presets-list {
+            max-height: 120px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: var(--input-bg);
+            margin-top: 8px;
+        }
+        .api-preset-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .api-preset-item:hover {
+            background: var(--paper-light);
+        }
+        .api-preset-item.active {
+            background: var(--paper-dark);
+            border-left: 3px solid #5cc976;
+            padding-left: 7px;
+            font-weight: bold;
+        }
+        .api-preset-item:last-child {
+            border-bottom: none;
+        }
+        .api-preset-delete {
+            color: #ff5555;
+            cursor: pointer;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+        .api-preset-delete:hover {
+            opacity: 1;
+        }
+        .api-settings-main {
+            display: flex;
+            gap: 15px;
+        }
+        .api-settings-form {
+            flex: 1;
+        }
+        .api-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .api-row .input-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .api-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .api-actions button {
+            flex: 1;
+        }
+        .api-preset-name-input {
+            flex: 0 0 120px;
+        }
         /* --- 系统通用弹窗 (System Dialog) --- */
         .sys-dialog-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -346,7 +446,7 @@
         .sys-dialog-overlay.active .sys-dialog-box { transform: scale(1); }
 
         .sys-dialog-title {
-            font-size: 1.1rem; font-weight: bold; margin-bottom: 10px;
+            font-size: 1.1rem; font-weight: bold 10px; margin-bottom: 10px;
             text-transform: uppercase; letter-spacing: 1px; color: var(--text-main);
         }
         .sys-dialog-msg {
@@ -373,6 +473,7 @@
     <div class="phone-container">
         <div class="screen">
             <div id="error-toast" class="error-toast"><i class="fas fa-exclamation-triangle"></i><span id="error-msg">连接失败</span></div>
+            <div id="info-notification"><i class="fas fa-info-circle"></i><span id="info-text">信息</span></div>
 
             <!-- 音乐列表弹窗 -->
             <div class="music-modal" id="music-modal">
@@ -392,10 +493,11 @@
             <!-- 1. 桌面视图 -->
             <div id="desktop-view" class="view-layer">
                 
-                <!-- 新增：编辑模式控制栏 -->
+                <!-- 新增：编辑模式控制栏 - 屏幕底部 -->
                 <div class="edit-controls" id="edit-controls">
-                    <div class="edit-btn cancel" onclick="cancelEditMode()"><i class="fas fa-times"></i></div>
-                    <div class="edit-btn save" onclick="saveEditMode()"><i class="fas fa-check"></i></div>
+                    <div class="edit-btn cancel" onclick="cancelEditMode()" title="取消"><i class="fas fa-times"></i></div>
+                    <div class="edit-btn reset" onclick="resetDesktopLayout()" title="重置"><i class="fas fa-redo"></i></div>
+                    <div class="edit-btn save" onclick="saveEditMode()" title="保存"><i class="fas fa-check"></i></div>
                 </div>
 
                 <div class="header-widget">
@@ -446,19 +548,33 @@
                 <div class="close-modal" onclick="closeModal('api-modal')">×</div>
                 <div class="scrollable-content">
                     <h3 class="modal-title">API 连接设置</h3>
+                    
+                    <!-- 预设管理区域 -->
+                    <div class="api-presets-section">
+                        <div class="section-title">API 预设管理</div>
+                        <div class="api-preset-input-row">
+                            <input type="text" id="api-preset-name" class="input-field api-preset-name-input" placeholder="预设名">
+                            <button class="btn btn-small api-preset-btn" onclick="saveApiPreset()"><i class="fas fa-save"></i> 保存预设</button>
+                        </div>
+                        <div class="api-presets-list" id="api-presets-list"></div>
+                    </div>
+                    
+                    <!-- API 连接设置区域 -->
+                    <div class="section-title">连接信息</div>
                     <div class="input-group"><label>API Endpoint</label><input type="text" id="api-url" class="input-field" placeholder="https://api.openai.com/v1"></div>
                     <div class="input-group"><label>API Key</label><input type="password" id="api-key" class="input-field" placeholder="sk-..."></div>
                     <div class="api-row">
-                    <!-- 替换开始 -->
-                    <div class="input-group">
-                        <label>Model</label>
-                        <select id="api-model" class="input-field">
-                        </select>
-                    </div>
-                    <!-- 替换结束 -->
+                        <div class="input-group">
+                            <label>Model</label>
+                            <select id="api-model" class="input-field"></select>
+                        </div>
                         <button class="btn btn-small" onclick="fetchModels()"><i class="fas fa-sync-alt"></i> 获取模型</button>
                     </div>
-                    <button class="btn" style="margin-top: 20px;" onclick="saveApiSettings()">保存设置</button>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="api-actions">
+                        <button class="btn" onclick="saveApiSettings()"><i class="fas fa-check"></i> 保存设置</button>
+                    </div>
                     <p id="save-msg" style="text-align: center; font-size: 0.7rem; margin-top: 10px; color: var(--text-dim); height: 1rem;"></p>
                 </div>
             </div>
@@ -544,7 +660,7 @@
         
         // --- 应用配置表：名字对应文件名 ---
         const appRoutes = {
-            'Whatsapp': 'apps/whatsapp.html',
+            'Whatsapp': 'apps/whatsapp/whatsapp.html',
             '贴吧': 'apps/tieba.html',
             '购物': 'apps/shopping.html',
             '直播': 'apps/live.html',
@@ -598,9 +714,12 @@
 
         function openSettings(type) {
             if (type === 'api') {
-                document.getElementById('api-url').value = localStorage.getItem('chat_api_url') || '';
-                document.getElementById('api-key').value = localStorage.getItem('chat_api_key') || '';
-                // 模型回显逻辑已移至 settings/api.js 的 DOMContentLoaded 中
+                document.getElementById('api-url').value = AppStorage.getString('chat_api_url');
+                document.getElementById('api-key').value = AppStorage.getString('chat_api_key');
+                // 加载预设列表
+                if (typeof renderApiPresetsList === 'function') {
+                    renderApiPresetsList();
+                }
                 document.getElementById('api-modal').classList.add('active');
             } else if (type === 'appearance') {
                 renderFontList(); // 这个函数现在来自 settings/appearance.js
@@ -620,12 +739,63 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // ==========================================
+        // 统一通知系统
+        // ==========================================
+        let notificationTimeout;
+        function showInfo(msg, type = 'default') {
+            const notification = document.getElementById('info-notification');
+            const text = document.getElementById('info-text');
+            const icon = notification.querySelector('i');
+            
+            // 取消之前的超时
+            if (notificationTimeout) clearTimeout(notificationTimeout);
+            
+            // 设置图标和类型
+            notification.className = '';
+            if (type === 'error') {
+                notification.classList.add('error');
+                icon.className = 'fas fa-exclamation-circle';
+            } else if (type === 'warning') {
+                notification.classList.add('warning');
+                icon.className = 'fas fa-exclamation-triangle';
+            } else if (type === 'success') {
+                notification.classList.add('success');
+                icon.className = 'fas fa-check-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            text.textContent = msg;
+            notification.classList.add('show');
+            
+            // 3秒后自动关闭
+            notificationTimeout = setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
         function showError(msg) {
             const toast = document.getElementById('error-toast');
             document.getElementById('error-msg').textContent = msg;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
+
+        // 统一的确认对话框处理函数
+        window.showConfirmOrAlert = function(message, onConfirm, title = '确认') {
+            if (typeof window.showConfirm === 'function') {
+                // 如果已定义了 showConfirm，使用它
+                window.showConfirm(message, onConfirm, title);
+            } else {
+                // 降级方案：使用原生 confirm
+                if (confirm(message)) {
+                    onConfirm();
+                }
+            }
+        };
+
         // ==========================================
         // 桌面图标管理系统 (长按编辑 & 拖拽)
         // ==========================================
@@ -635,14 +805,46 @@
         let pressTimer;
         let originalOrderHTML = ''; // 用于取消时恢复
 
+        // ==========================================
+        // 工具函数：提取重复代码
+        // ==========================================
+        
+        // 获取所有应用图标元素
+        const getAppItems = () => document.querySelectorAll('.app-item');
+        
+        // 统一的 Storage Manager - 处理 localStorage 和 JSON 转换
+        const AppStorage = {
+            get: (key, defaultValue = null) => {
+                try {
+                    const value = localStorage.getItem(key);
+                    return value ? JSON.parse(value) : defaultValue;
+                } catch(e) {
+                    console.error(`Storage.get("${key}") error:`, e);
+                    return defaultValue;
+                }
+            },
+            set: (key, value) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch(e) {
+                    console.error(`Storage.set("${key}") error:`, e);
+                }
+            },
+            remove: (key) => {
+                localStorage.removeItem(key);
+            },
+            getString: (key, defaultValue = '') => localStorage.getItem(key) || defaultValue,
+            setString: (key, value) => localStorage.setItem(key, value)
+        };
+
         // 1. 初始化：给所有图标绑定事件 & 加载保存的顺序
         function initDesktopIcons() {
             // 尝试加载保存的顺序
-            const savedOrder = localStorage.getItem('desktop_layout');
-            if (savedOrder) {
+            const savedOrder = AppStorage.get('desktop_layout');
+            if (savedOrder && Array.isArray(savedOrder)) {
                 // 如果有保存的顺序，重新排列 DOM
                 const currentItems = Array.from(gridContainer.children);
-                const savedApps = JSON.parse(savedOrder);
+                const savedApps = savedOrder;
                 
                 // 清空容器
                 gridContainer.innerHTML = '';
@@ -662,8 +864,7 @@
             }
 
             // 重新绑定事件
-            const items = document.querySelectorAll('.app-item');
-            items.forEach(item => {
+            getAppItems().forEach(item => {
                 // 移除旧的 onclick (如果 HTML 里还留着的话)
                 item.onclick = null; 
                 
@@ -723,8 +924,7 @@
             document.body.classList.add('is-editing');
             document.getElementById('edit-controls').classList.add('active');
             
-            const items = document.querySelectorAll('.app-item');
-            items.forEach(item => {
+            getAppItems().forEach(item => {
                 item.classList.add('editing');
                 item.setAttribute('draggable', 'true'); // 开启拖拽
             });
@@ -736,8 +936,7 @@
             document.body.classList.remove('is-editing');
             document.getElementById('edit-controls').classList.remove('active');
             
-            const items = document.querySelectorAll('.app-item');
-            items.forEach(item => {
+            getAppItems().forEach(item => {
                 item.classList.remove('editing');
                 item.setAttribute('draggable', 'false');
             });
@@ -748,18 +947,34 @@
 
         function saveEditMode() {
             // 获取当前顺序
-            const items = document.querySelectorAll('.app-item');
-            const order = Array.from(items).map(item => item.getAttribute('data-app'));
-            localStorage.setItem('desktop_layout', JSON.stringify(order));
+            const order = Array.from(getAppItems()).map(item => item.getAttribute('data-app'));
+            AppStorage.set('desktop_layout', order);
             
             closeEditMode();
-            showError("布局已保存"); // 复用你的 Toast 提示
+            showInfo("布局已保存", 'success');
         }
 
         function cancelEditMode() {
             // 恢复原来的 HTML
             gridContainer.innerHTML = originalOrderHTML;
             closeEditMode();
+        }
+
+        function resetDesktopLayout() {
+            // 确认重置
+            if (typeof window.showConfirm === 'function') {
+                window.showConfirm('确定要重置为默认布局吗？', () => {
+                    // 移除保存的布局
+                    localStorage.removeItem('desktop_layout');
+                    // 重新加载页面
+                    location.reload();
+                }, '重置');
+            } else {
+                if (confirm('确定要重置为默认布局吗？')) {
+                    localStorage.removeItem('desktop_layout');
+                    location.reload();
+                }
+            }
         }
 
         // 5. 拖拽排序逻辑 (HTML5 Drag & Drop)

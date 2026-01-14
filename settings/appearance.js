@@ -76,10 +76,10 @@ function addCustomFont() {
     const name = nameInput.value.trim();
     const url = urlInput.value.trim();
 
-    if (!name || !url) return showError('请填写完整'); // showError 在 index.html 中定义
+    if (!name || !url) return showInfo('请填写完整', 'warning'); // showInfo 在 index.html 中定义
     
     const fonts = getSavedFonts();
-    if (fonts.some(f => f.name === name)) return showError('名称已存在');
+    if (fonts.some(f => f.name === name)) return showInfo('名称已存在', 'warning');
     
     fonts.push({ name, url });
     localStorage.setItem('custom_fonts', JSON.stringify(fonts));

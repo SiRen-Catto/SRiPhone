@@ -293,7 +293,7 @@
         };
 
         let playlist = JSON.parse(localStorage.getItem('my_playlist')) || [
-            { name: "Lofi Chill", artist: "Unknown", url: "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elips.mp3", cover: "https://i.pinimg.com/564x/24/68/3b/24683b547285220c4c47f7d18a096c4a.jpg" }
+            { name: "505", artist: "Unknown", url: "http://music.163.com/song/media/outer/url?id=16502047.mp3", cover: "https://xffkws.iflytek.com/group1/M00/EA/40/rB_aXmlnR3qAf5yZAABRS7rGAU0628.png" }
         ];
         let currentSongIndex = 0;
         let isExpanded = false;
@@ -318,16 +318,37 @@
             }
         }
 
+        // ... existing code ...
+
         function loadSong(index, autoPlay = true) {
             if (index < 0 || index >= playlist.length) return;
             currentSongIndex = index;
             const song = playlist[index];
             
+            // 检查音频链接有效性
             audio.src = song.url;
+            audio.onerror = function() {
+                console.warn(`音频链接失效: ${song.url}`);
+                // 尝试下一个歌曲
+                if (playlist.length > 1) {
+                    let nextIndex = (currentSongIndex + 1) % playlist.length;
+                    loadSong(nextIndex);
+                }
+            };
             
             const defaultCover = "https://cdn-icons-png.flaticon.com/512/10606/10606037.png";
             let coverUrl = (song.cover && song.cover.trim() !== "") ? song.cover : defaultCover;
 
+            // 检查封面链接有效性
+            els.miniCover.onerror = function() {
+                console.warn(`封面链接失效: ${coverUrl}`);
+                els.miniCover.src = defaultCover;
+            };
+            els.largeCover.onerror = function() {
+                console.warn(`封面链接失效: ${coverUrl}`);
+                els.largeCover.src = defaultCover;
+            };
+            
             els.miniCover.src = coverUrl;
             els.largeCover.src = coverUrl;
             
@@ -344,6 +365,7 @@
             }
         }
 
+        // ... existing code ...
         window.togglePlay = function(e) {
             if(e) e.stopPropagation();
             if (audio.paused) {
