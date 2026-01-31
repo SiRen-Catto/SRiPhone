@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Settings</title>
+    
+    <!-- 关键修改 1: 在所有 CSS 之前立即执行主题和字体同步 -->
+    <script>
+        (function() {
+            // 1. 同步主题
+            const theme = localStorage.getItem('app_theme');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            
+            // 2. 同步字体
+            const activeFont = localStorage.getItem('active_font_name');
+            if (activeFont && activeFont !== 'Default') {
+                document.documentElement.style.setProperty('--font-mono', `'${activeFont}', sans-serif`);
+            }
+            
+            // 3. 注入自定义字体 CSS
+            const fonts = JSON.parse(localStorage.getItem('custom_fonts')) || [];
+            if (fonts.length > 0) {
+                let css = '';
+                fonts.forEach(f => { css += `@font-face { font-family: '${f.name}'; src: url('${f.url}'); }`; });
+                const style = document.createElement('style');
+                style.id = 'custom-font-style-head';
+                style.textContent = css;
+                document.head.appendChild(style);
+            }
+        })();
+    </script>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 1. 基础变量与主题 --- */
+        :root {
+            --bg-color: #111111;
+            --paper-bg: #1a1a1a;
+            --receipt-bg: #e6e6e6; 
+            --receipt-text: #222;
+            --text-main: #d0d0d0;
+            --text-dim: #666;
+            --border-color: #333;
+            --accent-color: #d0d0d0;
+            --shadow: rgba(0,0,0,0.5);
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        /* 关键修改 2: 选择器改为 html.light-mode，使其立即生效 */
+        html.light-mode {
+            --bg-color: #f4f4f4;
+            --paper-bg: #ffffff;
+            --text-main: #111;
+            --text-dim: #888;
+            --border-color: #ccc;
+            --accent-color: #000;
+            --shadow: rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; padding: 15px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            height: 100vh;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            /* 移除 transition: background，防止初始加载时的过渡动画 */
+            /* transition: background 0.3s; */ 
+        }
+
+        /* --- 2. 顶部导航 --- */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-bottom: 15px; border-bottom: 2px dashed var(--border-color);
+            margin-bottom: 20px;
+        }
+        .title { font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; }
+        
+        .user-profile-area { display: flex; align-items: center; cursor: pointer; }
+        
+        /* 头像容器 */
+        .avatar-wrapper { position: relative; }
+        
+        .user-avatar-small {
+            width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--text-main);
+            background-color: #333; background-size: cover; background-position: center;
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .user-profile-area:hover .user-avatar-small { transform: scale(1.1); }
+        
+        .user-avatar-small i { font-size: 1.5rem; color: #fff; }
+        
+        /* 红点装饰现在附着在头像上 */
+        .user-icon-decor {
+            width: 10px; height: 10px; background: #c00; border-radius: 50%;
+            border: 2px solid var(--bg-color); position: absolute; bottom: 0; right: 0;
+            z-index: 2;
+        }
+
+        /* --- 3. 九宫格列表 --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            overflow-y: auto;
+            padding: 5px;
+            padding-bottom: 50px;
+        }
+        .grid-container::-webkit-scrollbar { width: 0; }
+
+        .card {
+            aspect-ratio: 1/1;
+            background-color: var(--paper-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 3px 3px 0 var(--shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
+        .card:nth-child(3n+1) { transform: rotate(-1deg); }
+        .card:nth-child(3n+2) { transform: rotate(1.5deg); }
+        .card:hover { transform: rotate(0deg) scale(1.05); z-index: 10; border-color: var(--accent-color); }
+
+        .card.add-btn { border: 2px dashed var(--border-color); background: transparent; box-shadow: none; }
+        .card.add-btn i { font-size: 2rem; color: var(--text-dim); opacity: 0.5; }
+        .card.add-btn:hover i { opacity: 1; color: var(--accent-color); }
+
+        /* 角色头像显示 */
+        .char-avatar {
+            width: 50px; height: 50px;
+            background: #333; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin-bottom: 8px; font-size: 1.2rem; color: #fff;
+            border: 2px solid var(--border-color);
+            background-size: cover; background-position: center;
+            overflow: hidden;
+        }
+        html.light-mode .char-avatar { background-color: #ddd; color: #333; }
+        .char-name { font-size: 0.7rem; font-weight: bold; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 90%; }
+
+        /* --- 4. 账单/收据弹窗 --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            backdrop-filter: blur(2px);
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .receipt-paper {
+            width: 85%;
+            background-color: var(--receipt-bg);
+            color: var(--receipt-text);
+            padding: 20px 15px 40px 15px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-family: 'Courier New', Courier, monospace;
+            transform: rotate(-1deg);
+            max-height: 90vh; overflow-y: auto;
+            
+            --tooth-width: 10px;
+            --tooth-height: 10px;
+            clip-path: polygon(
+                0% 0%, 100% 0%, 100% 100%, 
+                95% calc(100% - 5px), 90% 100%, 
+                85% calc(100% - 5px), 80% 100%, 
+                75% calc(100% - 5px), 70% 100%, 
+                65% calc(100% - 5px), 60% 100%, 
+                55% calc(100% - 5px), 50% 100%, 
+                45% calc(100% - 5px), 40% 100%, 
+                35% calc(100% - 5px), 30% 100%, 
+                25% calc(100% - 5px), 20% 100%, 
+                15% calc(100% - 5px), 10% 100%, 
+                5% calc(100% - 5px), 0% 100%
+            );
+        }
+        .receipt-paper::-webkit-scrollbar { width: 0; }
+
+        .receipt-header { 
+            text-align: center; 
+            border-bottom: 2px dashed #999; 
+            padding-bottom: 10px; 
+            margin-bottom: 15px; 
+        }
+        .receipt-title { font-weight: 900; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+
+        .form-group { margin-bottom: 12px; display: flex; align-items: baseline; }
+        .form-label { font-size: 0.75rem; font-weight: bold; min-width: 60px; text-transform: uppercase; color: #444; }
+        .form-input { 
+            flex: 1; background: transparent; border: none; 
+            border-bottom: 1px solid #999; 
+            font-family: inherit; font-size: 0.9rem; color: #000;
+            padding: 2px 5px; outline: none; border-radius: 0;
+        }
+        .form-input:focus { border-bottom-color: #000; background: rgba(0,0,0,0.05); }
+        .form-textarea {
+            width: 100%; 
+            background: rgba(255,255,255,0.5); 
+            border: 1px solid #999;
+            font-family: inherit; 
+            font-size: 0.8rem; 
+            padding: 5px;
+            height: 120px; 
+            resize: none; 
+            outline: none; 
+            margin-top: 5px;
+            overflow-y: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .form-textarea::-webkit-scrollbar { display: none; }
+        
+        .img-preview-box {
+            width: 100%; height: 80px; background: #ddd; border: 1px dashed #999;
+            margin-bottom: 10px; display: flex; justify-content: center; align-items: center;
+            overflow: hidden; color: #777; font-size: 0.8rem;
+        }
+        .img-preview-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        .barcode {
+            height: 30px; background: repeating-linear-gradient(90deg, #000 0, #000 2px, transparent 2px, transparent 4px, #000 4px, #000 5px, transparent 5px, transparent 8px);
+            margin: 15px 0; opacity: 0.7;
+        }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        .receipt-btn {
+            flex: 1; padding: 8px 0; border: 1px solid #000; background: transparent;
+            font-family: inherit; font-weight: bold; cursor: pointer; text-transform: uppercase;
+            font-size: 0.8rem; transition: 0.2s; color: #000;
+        }
+        .receipt-btn:hover { background: #000; color: #fff; }
+        .receipt-btn.delete { color: #a00; border-color: #a00; }
+        .receipt-btn.delete:hover { background: #a00; color: #fff; }
+
+        .close-modal-x {
+            position: absolute; top: 10px; right: 10px; font-size: 1.2rem; cursor: pointer; color: #444;
+        }
+
+        /* --- 5. 多选下拉列表样式 --- */
+        .dropdown-container { flex: 1; position: relative; }
+        .dropdown-header {
+            border-bottom: 1px solid #999; padding: 2px 5px; font-size: 0.9rem;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+        }
+        .dropdown-header:hover { background: rgba(0,0,0,0.05); }
+        .dropdown-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+        .dropdown-list {
+            display: none; position: absolute; top: 100%; left: 0; width: 100%;
+            background: #f0f0f0; border: 1px dashed #999;
+            max-height: 150px; overflow-y: auto; z-index: 50; box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+        .dropdown-list.active { display: block; }
+        .dropdown-item {
+            padding: 8px; border-bottom: 1px dotted #ccc;
+            font-size: 0.8rem; display: flex; align-items: center; gap: 8px; cursor: pointer;
+        }
+        .dropdown-item:hover { background: #e0e0e0; }
+        .dropdown-item input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
+        .count-badge { background: #000; color: #fff; font-size: 0.7rem; padding: 1px 5px; border-radius: 2px; }
+
+        /* --- 6. 内部系统弹窗样式 --- */
+        .sys-dialog-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(3px);
+        }
+        .sys-dialog-overlay.active { opacity: 1; pointer-events: all; }
+
+        .sys-dialog-box {
+            width: 85%; background: var(--paper-bg);
+            border: 2px solid var(--text-main); border-radius: 15px;
+            padding: 20px; text-align: center; color: var(--text-main);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.2s;
+        }
+        .sys-dialog-overlay.active .sys-dialog-box { transform: scale(1); }
+
+        .sys-dialog-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .sys-dialog-msg { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; }
+
+        .sys-dialog-btns { display: flex; gap: 10px; justify-content: center; }
+        .sys-btn {
+            flex: 1; padding: 10px; border: 1px solid var(--border-color);
+            background: transparent; color: var(--text-main); border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .sys-btn:hover { background: var(--text-main); color: var(--bg-color); }
+        .sys-btn.danger { border-color: #a00; color: #a00; }
+        .sys-btn.danger:hover { background: #a00; color: #fff; }
+
+    </style>
+</head>
+<body>
+
+    <!-- 顶部 -->
+    <div class="header">
+        <div class="title">SETTINGS</div>
+        <div class="user-profile-area" onclick="openUserModal()">
+            <div class="avatar-wrapper">
+                <div class="user-avatar-small" id="header-user-avatar"><i class="fas fa-user"></i></div>
+                <div class="user-icon-decor"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 列表区域 -->
+    <div class="grid-container" id="char-grid"></div>
+
+    <!-- 内部弹窗 -->
+    <div class="sys-dialog-overlay" id="sys-dialog">
+        <div class="sys-dialog-box">
+            <div class="sys-dialog-title" id="sys-title">Alert</div>
+            <div class="sys-dialog-msg" id="sys-msg">Message</div>
+            <div class="sys-dialog-btns">
+                <button class="sys-btn" onclick="closeSysDialog()">CANCEL</button>
+                <button class="sys-btn danger" id="sys-btn-confirm">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div id="receipt-modal" class="modal-overlay">
+        <div class="receipt-paper">
+            <div class="close-modal-x" onclick="closeModal()">×</div>
+            <div class="receipt-header"><div class="receipt-title" id="modal-title">INVOICE</div></div>
+            <div class="img-preview-box" id="modal-img-preview"><span>NO IMAGE</span></div>
+            <div id="modal-content-form"></div>
+            <div class="barcode"></div>
+            <div class="btn-group">
+                <button class="receipt-btn delete" id="btn-delete" style="display:none;" onclick="deleteCurrent()">VOID</button>
+                <button class="receipt-btn" onclick="saveCurrent()">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 后续同步逻辑 (保留以应对运行时的变化) ---
+        function syncTheme() {
+            const theme = localStorage.getItem('app_theme');
+            // 关键修改 3: 操作 documentElement 而不是 body
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            else document.documentElement.classList.remove('light-mode');
+        }
+        window.addEventListener('storage', syncTheme);
+        // 保险起见
+        setInterval(syncTheme, 1000); 
+
+        // --- 2. 内部弹窗逻辑 ---
+        let confirmCallback = null;
+        function showConfirm(msg, onConfirm, title = "CONFIRMATION", isDanger = true) {
+            const dialog = document.getElementById('sys-dialog');
+            document.getElementById('sys-title').textContent = title;
+            document.getElementById('sys-msg').textContent = msg;
+            const confirmBtn = document.getElementById('sys-btn-confirm');
+            if(isDanger) {
+                confirmBtn.classList.add('danger');
+                confirmBtn.innerText = "DELETE"; 
+            } else {
+                confirmBtn.classList.remove('danger');
+                confirmBtn.innerText = "OK";
+            }
+            confirmCallback = onConfirm;
+            dialog.classList.add('active');
+        }
+        function closeSysDialog() {
+            document.getElementById('sys-dialog').classList.remove('active');
+            confirmCallback = null;
+        }
+        document.getElementById('sys-btn-confirm').onclick = function() {
+            if (confirmCallback) confirmCallback();
+            closeSysDialog();
+        };
+
+        // --- 3. 数据 ---
+        let characters = JSON.parse(localStorage.getItem('saved_characters')) || [];
+        let userSettings = JSON.parse(localStorage.getItem('user_settings')) || { name: 'Admin', bio: '神秘的操作者', avatarUrl: '' };
+        let currentEditIndex = -1;
+        let isEditingUser = false;
+
+        const grid = document.getElementById('char-grid');
+        const modal = document.getElementById('receipt-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalForm = document.getElementById('modal-content-form');
+        const btnDelete = document.getElementById('btn-delete');
+        const imgPreview = document.getElementById('modal-img-preview');
+        const headerUserAvatar = document.getElementById('header-user-avatar');
+
+        function updateUserHeader() {
+            if (userSettings.avatarUrl) {
+                headerUserAvatar.style.backgroundImage = `url('${userSettings.avatarUrl}')`;
+                headerUserAvatar.innerHTML = '';
+            } else {
+                headerUserAvatar.style.backgroundImage = 'none';
+                headerUserAvatar.innerHTML = '<i class="fas fa-user"></i>';
+            }
+        }
+        updateUserHeader();
+
+        function renderGrid() {
+            grid.innerHTML = '';
+            const addBtn = document.createElement('div');
+            addBtn.className = 'card add-btn';
+            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+            addBtn.onclick = () => openCharModal(-1);
+            grid.appendChild(addBtn);
+
+            characters.forEach((char, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                let avatarHtml = char.avatarUrl ? `<div class="char-avatar" style="background-image: url('${char.avatarUrl}')"></div>` : `<div class="char-avatar">${char.name ? char.name[0].toUpperCase() : '?'}</div>`;
+                card.innerHTML = `${avatarHtml}<div class="char-name">${char.name}</div>`;
+                card.onclick = () => openCharModal(index);
+                grid.appendChild(card);
+            });
+        }
+
+        function getWorldBookData() {
+            const sBooks = JSON.parse(localStorage.getItem('wb_data_settings')) || [];
+            const pBooks = JSON.parse(localStorage.getItem('wb_data_presets')) || [];
+            return [...sBooks, ...pBooks];
+        }
+
+        function generateInput(label, id, value = '', type = 'text', onInput = '') {
+            return `<div class="form-group"><div class="form-label">${label}</div><input type="${type}" id="${id}" class="form-input" value="${value}" autocomplete="off" oninput="${onInput}"></div>`;
+        }
+
+        function generateBookSelector(currentValue = '') {
+            const books = getWorldBookData();
+            const selectedBooks = currentValue ? currentValue.split(',').map(s => s.trim()) : [];
+            let listHtml = '';
+            if (books.length === 0) listHtml = '<div class="dropdown-item" style="color:#888; font-style:italic;">No World Books Found</div>';
+            else {
+                books.forEach(book => {
+                    const isChecked = selectedBooks.includes(book.title);
+                    listHtml += `<label class="dropdown-item" onclick="event.stopPropagation()"><input type="checkbox" value="${book.title}" onchange="updateBookSelection()" ${isChecked ? 'checked' : ''}><span>${book.title || 'Untitled'}</span></label>`;
+                });
+            }
+            const countText = selectedBooks.length > 0 ? `${selectedBooks.length} Selected` : 'Select Books...';
+            return `<div class="form-group"><div class="form-label">BOOK</div><div class="dropdown-container"><div class="dropdown-header" onclick="toggleBookDropdown()"><span id="book-display-text">${countText}</span><i class="fas fa-chevron-down" style="font-size:0.7rem"></i></div><div class="dropdown-list" id="book-dropdown-list">${listHtml}</div><input type="hidden" id="inp-book" value="${currentValue}"></div></div>`;
+        }
+
+        function toggleBookDropdown() { document.getElementById('book-dropdown-list').classList.toggle('active'); }
+        function updateBookSelection() {
+            const checkboxes = document.querySelectorAll('#book-dropdown-list input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+            document.getElementById('book-display-text').innerHTML = selected.length === 0 ? "Select Books..." : `<span class="count-badge">${selected.length}</span> Selected`;
+            document.getElementById('inp-book').value = selected.join(',');
+        }
+        document.addEventListener('click', function(e) {
+            const container = document.querySelector('.dropdown-container');
+            if (container && !container.contains(e.target)) document.getElementById('book-dropdown-list')?.classList.remove('active');
+        });
+
+        window.previewImage = function(url) {
+            imgPreview.innerHTML = url ? `<img src="${url}" onerror="this.style.display='none';this.parentNode.innerHTML='<span>INVALID URL</span>'">` : `<span>NO IMAGE</span>`;
+        }
+
+        function openCharModal(index) {
+            isEditingUser = false;
+            currentEditIndex = index;
+            modal.classList.add('active');
+            let data = index === -1 ? { name:'', sex:'', birth:'', book:'', desc:'', avatarUrl:'' } : characters[index];
+            modalTitle.textContent = index === -1 ? "NEW ENTRY" : "EDIT DATA";
+            btnDelete.style.display = index === -1 ? 'none' : 'block';
+            previewImage(data.avatarUrl);
+            modalForm.innerHTML = `${generateInput('NAME', 'inp-name', data.name)}${generateInput('AVATAR', 'inp-avatar', data.avatarUrl, 'text', 'previewImage(this.value)')}${generateInput('SEX', 'inp-sex', data.sex)}${generateInput('BIRTH', 'inp-birth', data.birth, 'date')}${generateBookSelector(data.book)}<div style="font-size:0.75rem; font-weight:bold; margin-top:10px;">DESCRIPTION:</div><textarea id="inp-desc" class="form-textarea">${data.desc || ''}</textarea>`;
+        }
+
+        function openUserModal() {
+            isEditingUser = true;
+            modal.classList.add('active');
+            modalTitle.textContent = "USER PROFILE";
+            btnDelete.style.display = 'none';
+            previewImage(userSettings.avatarUrl);
+            modalForm.innerHTML = `${generateInput('NAME', 'inp-name', userSettings.name)}${generateInput('AVATAR', 'inp-avatar', userSettings.avatarUrl, 'text', 'previewImage(this.value)')}<div style="font-size:0.75rem; font-weight:bold; margin-top:10px;">BIO / NOTE:</div><textarea id="inp-desc" class="form-textarea">${userSettings.bio || ''}</textarea><div style="margin-top:10px; font-size:0.7rem; color:#666; font-style:italic;">* System Administrator Settings</div>`;
+        }
+
+        function closeModal() { modal.classList.remove('active'); }
+
+        function saveCurrent() {
+            const name = document.getElementById('inp-name').value;
+            const avatarUrl = document.getElementById('inp-avatar').value;
+            const desc = document.getElementById('inp-desc').value;
+            if (!name) { alert('Name is required!'); return; }
+            if (isEditingUser) {
+                userSettings = { name, bio: desc, avatarUrl };
+                localStorage.setItem('user_settings', JSON.stringify(userSettings));
+                updateUserHeader();
+            } else {
+                const sex = document.getElementById('inp-sex').value;
+                const birth = document.getElementById('inp-birth').value;
+                const book = document.getElementById('inp-book').value;
+                const charData = { name, sex, birth, book, desc, avatarUrl };
+                if (currentEditIndex === -1) characters.push(charData); else characters[currentEditIndex] = charData;
+                localStorage.setItem('saved_characters', JSON.stringify(characters));
+                renderGrid();
+            }
+            closeModal();
+        }
+
+        function deleteCurrent() {
+            if (isEditingUser) return;
+            showConfirm("Delete this character record?", () => {
+                characters.splice(currentEditIndex, 1);
+                localStorage.setItem('saved_characters', JSON.stringify(characters));
+                renderGrid();
+                closeModal();
+            }, "DELETE CHARACTER");
+        }
+
+        renderGrid();
+    </script>
+</body>
+</html>

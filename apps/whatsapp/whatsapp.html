@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp</title>
+    
+    <!-- 引入手写字体 (记事本需要) -->
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Reenie+Beanie&display=swap" rel="stylesheet">
+    
+    <script>
+        (function() {
+            const theme = localStorage.getItem('app_theme');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            
+            const activeFont = localStorage.getItem('active_font_name');
+            if (activeFont && activeFont !== 'Default') {
+                document.documentElement.style.setProperty('--font-main', `'${activeFont}', sans-serif`);
+            }
+            
+            const fonts = JSON.parse(localStorage.getItem('custom_fonts')) || [];
+            if (fonts.length > 0) {
+                let css = '';
+                fonts.forEach(f => { css += `@font-face { font-family: '${f.name}'; src: url('${f.url}'); }`; });
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+            }
+        })();
+    </script>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- 引入工具功能模块 -->
+    <script src="tools-drawer/tools.js"></script>
+    <script src="tools-drawer/voice.js"></script>
+    <script src="tools-drawer/gift.js"></script>
+    <script src="tools-drawer/transfer.js"></script>
+    <script src="tools-drawer/location.js"></script>
+    <style>
+        /* --- 变量定义 --- */
+        :root {
+            --bg-color: #000000;
+            --header-bg: #111111;
+            --item-bg: #0a0a0a;
+            --text-main: #d0d0d0;
+            --text-dim: #666666;
+            --accent: #ffffff;
+            --border: #333333;
+            --bubble-me-bg: #222222;
+            --bubble-me-text: #d0d0d0;
+            --bubble-other-bg: #000000;
+            --bubble-other-text: #d0d0d0;
+            --heart-stroke-them: #000000; 
+            --font-main: 'Courier New', Courier, monospace;
+            --danger: #ff3333;
+        }
+
+        html.light-mode {
+            --bg-color: #ffffff;
+            --header-bg: #ffffff;
+            --item-bg: #ffffff;
+            --text-main: #000000;
+            --text-dim: #000000;
+            --accent: #000000;
+            --border: #000000;
+            --bubble-me-bg: #000000;
+            --bubble-me-text: #ffffff;
+            --bubble-other-bg: #ffffff;
+            --bubble-other-text: #000000;
+            --heart-stroke-them: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* 新增代码：只给背景和大容器加过渡 */
+        body, .phone-container, .screen, .app-navbar, .dock-bar, .modal-content, .list-item, .input-field, .btn {
+            transition: background-color 0.4s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- 顶部导航 --- */
+        .app-header {
+            background: var(--header-bg);
+            height: 50px; 
+            padding: 0 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--border);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .header-tabs { display: flex; gap: 20px; height: 100%; }
+
+        .tab-btn {
+            height: 100%; display: flex; align-items: center;
+            font-size: 0.85rem; font-weight: bold; color: var(--text-dim);
+            cursor: pointer; position: relative; transition: color 0.2s;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            opacity: 0.6;
+        }
+        .tab-btn:hover { opacity: 1; }
+        .tab-btn.active { color: var(--text-main); opacity: 1; }
+        .tab-btn.active::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%;
+            height: 3px; background: var(--accent);
+        }
+
+        .header-icons { display: flex; align-items: center; gap: 15px; }
+        .header-icons i { font-size: 1rem; color: var(--text-main); cursor: pointer; }
+
+        /* --- 主内容区 --- */
+        .views-container { flex: 1; position: relative; overflow: hidden; }
+        .view-section {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow-y: auto; overflow-x: hidden;
+            padding: 10px; display: none;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .view-section::-webkit-scrollbar { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- 列表项 --- */
+        .list-item {
+            display: flex; align-items: center;
+            background: var(--item-bg);
+            margin-bottom: 12px;
+            padding: 10px;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background-image: radial-gradient(circle, var(--bg-color) 3px, transparent 3.5px);
+            background-size: 10px 10px;
+            background-position: -5px -5px;
+            background-repeat: repeat-y;
+            border-left: none; 
+            padding-left: 15px;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        .list-item:active { transform: scale(0.98); }
+        
+        .avatar-stamp {
+            width: 50px; height: 50px; 
+            border-radius: 50%;
+            border: 3px double var(--text-main); 
+            background-color: var(--item-bg); 
+            background-size: cover; background-position: center;
+            flex-shrink: 0; margin-right: 12px;
+            position: relative;
+            overflow: hidden;
+            transform: rotate(-5deg); 
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+            filter: grayscale(100%) contrast(1.2);
+            transition: transform 0.3s;
+        }
+        .list-item:hover .avatar-stamp { transform: rotate(0deg) scale(1.05); }
+        .avatar-stamp::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.3'/%3E%3C/svg%3E");
+            opacity: 0.4; pointer-events: none; border-radius: 50%;
+        }
+        .avatar-text {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            font-size: 1.5rem; font-weight: bold; color: var(--text-main); font-family: 'Courier New', Courier, monospace;
+        }
+        .info-col { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+        .top-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+        .name { font-weight: bold; font-size: 0.95rem; letter-spacing: 0.5px; color: var(--text-main); }
+        .time { font-size: 0.7rem; color: var(--text-dim); font-family: monospace; font-weight: bold; }
+        .msg-preview { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic; opacity: 0.8; }
+
+        /* --- 朋友圈 --- */
+        .moment-card { background: var(--item-bg); border: 1px solid var(--border); padding: 10px; margin-bottom: 15px; position: relative; }
+        .tape {
+            position: absolute; top: -8px; left: 50%; transform: translateX(-50%) rotate(-2deg);
+            width: 60px; height: 15px; background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(2px); border-left: 1px dashed rgba(255,255,255,0.4); border-right: 1px dashed rgba(255,255,255,0.4);
+        }
+        html.light-mode .tape { background: rgba(0,0,0,0.1); border-color: rgba(0,0,0,0.5); }
+        .moment-header { display: flex; align-items: center; margin-bottom: 8px; }
+        .moment-img { width: 100%; height: 150px; object-fit: cover; border: 1px solid var(--border); margin-bottom: 8px; filter: grayscale(100%); }
+        .moment-text { font-size: 0.8rem; line-height: 1.4; margin-bottom: 8px; color: var(--text-main); }
+        .moment-actions { display: flex; gap: 15px; font-size: 0.9rem; color: var(--text-dim); }
+
+        /* --- 聊天室 --- */
+        .chat-room {
+            position: fixed; top: 0; left: 100%; width: 100%; height: 100%;
+            background: var(--bg-color); z-index: 50;
+            display: flex; flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .chat-room.active { 
+            transform: translateX(-100%); 
+            overflow: hidden; /* 新增 */
+        }
+        .chat-header {
+            background: var(--header-bg); padding: 0 10px;
+            display: flex; align-items: center; gap: 10px;
+            border-bottom: 2px dashed var(--border); height: 50px;
+        }
+        .back-btn { font-size: 1.2rem; cursor: pointer; padding: 5px; color: var(--text-main); }
+        .chat-user-info { flex: 1; }
+        .chat-user-name { font-weight: bold; font-size: 0.9rem; color: var(--text-main); }
+        .chat-user-status { font-size: 0.65rem; color: var(--text-dim); transition: color 0.3s; }
+        .chat-user-status.typing { color: #28a745; font-weight: bold; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        .chat-area {
+            flex: 1; 
+            padding: 20px 15px;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px);
+            background-size: 20px 20px; opacity: 0.9;
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .chat-area::-webkit-scrollbar { display: none; }
+        
+        .msg-row {
+            display: flex; flex-direction: column; margin-bottom: 20px;
+            max-width: 80%; clear: both;
+        }
+        .msg-row.them { float: left; align-items: flex-start; }
+        .msg-row.me { float: right; align-items: flex-end; }
+
+        .msg-bubble {
+            padding: 8px 14px; 
+            font-size: 0.85rem; line-height: 1.4; position: relative; word-wrap: break-word;
+            border: 1px solid var(--border); border-radius: 12px;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
+            background-image: repeating-linear-gradient(transparent, transparent 23px, rgba(128,128,128,0.1) 24px);
+            background-size: 100% 24px; background-attachment: local;
+            transition: all 0.2s;
+        }
+        
+        /* 选中状态 */
+        .msg-bubble.selected {
+            border-color: var(--danger) !important;
+            color: var(--danger) !important;
+            background-color: rgba(255,0,0,0.05) !important;
+        }
+        .msg-bubble.selected::after {
+            color: var(--danger) !important;
+            text-shadow: 1px 1px 0 var(--danger), -1px 1px 0 var(--danger), 1px -1px 0 var(--danger), -1px -1px 0 var(--danger) !important;
+        }
+
+        /* 爱心基础样式 */
+        .msg-bubble::after {
+            content: '\f004'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            position: absolute; top: -8px; right: -6px; font-size: 12px;
+            padding: 0 2px; border-radius: 50%; transform: rotate(15deg); z-index: 2;
+        }
+
+        /* 对方气泡 */
+        .msg-row.them .msg-bubble {
+            background-color: var(--bubble-other-bg); color: var(--bubble-other-text);
+            border-radius: 4px 15px 15px 15px; border-color: var(--border);
+        }
+        .msg-row.them .msg-bubble::after { 
+            color: var(--bubble-other-text); 
+            text-shadow: 1px 1px 0 var(--heart-stroke-them), -1px 1px 0 var(--heart-stroke-them), 1px -1px 0 var(--heart-stroke-them), -1px -1px 0 var(--heart-stroke-them);
+        }
+
+        /* 我方气泡 */
+        .msg-row.me .msg-bubble {
+            background-color: var(--bubble-me-bg); color: var(--bubble-me-text);
+            border-radius: 15px 15px 4px 15px; border-color: var(--border);
+        }
+        .msg-row.me .msg-bubble::after { 
+            color: var(--bubble-me-text); 
+            /* 强制黑色描边 */
+            text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000 !important;
+        }
+
+        .msg-time-out {
+            font-size: 0.65rem; color: var(--text-dim); margin-top: 4px;
+            font-family: monospace; font-weight: bold; opacity: 0.8; padding: 0 4px;
+        }
+
+        /* --- 扩展工具栏 (极窄) --- */
+        .chat-tools-drawer {
+            height: 0; overflow: hidden; transition: height 0.3s ease;
+            background: var(--header-bg); border-top: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 10px; gap: 5px;
+        }
+        .chat-tools-drawer.open { height: 30px; }
+        
+        .tool-icon {
+            font-size: 0.85rem; color: var(--text-dim); cursor: pointer;
+            width: 24px; height: 24px; display: flex; justify-content: center; align-items: center;
+            border: 1px solid transparent; border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .tool-icon:hover { color: var(--text-main); border-color: var(--border); background: var(--bg-color); }
+        .tool-icon.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+        /* --- 输入框区域 (紧凑) --- */
+        .chat-input-bar {
+            padding: 6px 10px;
+            background: var(--header-bg);
+            border-top: 2px solid var(--border);
+            display: flex; gap: 8px; align-items: flex-end;
+        }
+        .chat-input {
+            flex: 1; background: var(--bg-color); border: 2px solid var(--border);
+            color: var(--text-main); padding: 6px 8px; font-family: inherit;
+            resize: none; height: 34px; max-height: 100px; outline: none;
+            font-size: 0.8rem; border-radius: 4px; font-weight: bold;
+            
+            /* --- 新增：隐藏滚动条 (Firefox / IE) --- */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+
+        /* --- 新增：隐藏滚动条 (Chrome / Safari) --- */
+        .chat-input::-webkit-scrollbar {
+            display: none;
+        }
+        /* 圆形发送键 */
+        .send-btn {
+            width: 34px; height: 34px; background: var(--text-main); color: var(--bg-color);
+            border: 2px solid var(--border); 
+            border-radius: 50%;
+            display: flex; justify-content: center;
+            align-items: center; cursor: pointer;
+            flex-shrink: 0;
+        }
+        .send-btn:active { transform: scale(0.95); opacity: 0.8; }
+        
+        /* 选择模式下的底部栏 */
+        .selection-bar {
+            display: none; width: 100%; align-items: center; justify-content: space-between;
+            color: var(--text-main); font-weight: bold; height: 34px;
+        }
+        .selection-bar.active { display: flex; }
+        .sel-btn {
+            padding: 4px 12px; border: 2px solid var(--border); border-radius: 4px;
+            cursor: pointer; font-size: 0.75rem; text-transform: uppercase;
+        }
+        .sel-btn.delete { border-color: var(--danger); color: var(--danger); }
+
+        .empty-state { text-align: center; margin-top: 50px; color: var(--text-dim); font-style: italic; font-size: 0.8rem; }
+
+        /* --- 系统弹窗 --- */
+        .sys-dialog-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(3px);
+        }
+        .sys-dialog-overlay.active { opacity: 1; pointer-events: all; }
+        .sys-dialog-box {
+            width: 80%; background: var(--item-bg);
+            border: 2px solid var(--text-main); border-radius: 10px;
+            padding: 20px; text-align: center; color: var(--text-main);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .sys-dialog-title { font-weight: bold; margin-bottom: 10px; color: #a00; }
+        .sys-btn {
+            margin-top: 15px; padding: 8px 20px; background: transparent;
+            border: 1px solid var(--text-main); color: var(--text-main);
+            cursor: pointer; font-weight: bold;
+        }
+
+        /* --- 礼物弹窗 --- */
+        .gift-modal-overlay {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.2); z-index: 10000;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .gift-modal-overlay.active {
+            opacity: 1; pointer-events: all;
+        }
+        .gift-modal {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+            width: 85%; max-width: 400px;
+            background: var(--header-bg); border-top: 2px solid var(--border);
+            border-radius: 12px 12px 0 0; transition: transform 0.2s ease;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+            max-height: 60vh;
+        }
+        .gift-modal-overlay.active .gift-modal {
+            transform: translateX(-50%) translateY(0);
+        }
+        .gift-modal-content {
+            padding: 10px;
+        }
+        .gift-inputs {
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .input-row {
+            display: flex; gap: 6px;
+        }
+        .input-label {
+            display: none;
+        }
+        .input-container {
+            display: flex; gap: 6px;
+            width: 100%;
+        }
+        .name-input {
+            flex: 1;
+            max-width: 180px;
+        }
+        .price-input-wrapper {
+            display: flex; align-items: center; position: relative;
+            flex: 0 0 100px;
+        }
+        .price-input {
+            width: 100%; padding-right: 25px;
+            text-align: left;
+            font-size: 0.8rem;
+        }
+        .price-input::placeholder {
+            text-align: left;
+        }
+        .yen-symbol {
+            position: absolute; right: 8px; color: var(--text-main); font-weight: bold;
+            font-size: 0.8rem;
+        }
+        .gift-input {
+            background: var(--bg-color); border: 1px solid var(--border);
+            color: var(--text-main); padding: 6px 8px;
+            font-size: 0.8rem;
+            outline: none; border-radius: 6px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .desc-input {
+            width: 100%; resize: none; /* 隐藏滑轮 */
+            scrollbar-width: none; -ms-overflow-style: none;
+            min-height: 60px;
+            font-size: 0.8rem;
+        }
+        .desc-input::-webkit-scrollbar {
+            display: none;
+        }
+        .gift-input {
+            background: var(--bg-color); border: 1px solid var(--border);
+            color: var(--text-main); padding: 6px 8px;
+            font-size: 0.8rem;
+            outline: none; border-radius: 6px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .gift-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+        }
+        .gift-send-btn {
+            width: 100%;
+            padding: 8px 16px;
+            background: var(--bubble-me-bg);
+            color: var(--bubble-me-text);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            margin-top: 4px;
+        }
+        .gift-send-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* 移除number输入框的上下箭头 */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* --- 礼物消息 --- */
+        .gift-box {
+            width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--bg-color); border: 1px solid var(--border);
+            border-radius: 12px; cursor: pointer; transition: transform 0.2s;
+        }
+        .gift-box:hover { transform: scale(1.05); }
+        .gift-icon { font-size: 1.5rem; color: var(--text-main); margin-bottom: 2px; }
+        .gift-price {
+            background: var(--danger); color: white; padding: 1px 4px;
+            border-radius: 6px; font-size: 0.6rem; font-weight: bold;
+        }
+        .gift-name { font-size: 0.7rem; color: var(--text-main); text-align: center; margin-top: 2px; }
+
+        /* --- 礼物详情便签条 --- */
+        .gift-note {
+            position: fixed; z-index: 10001;
+            background: var(--item-bg); border: 2px solid var(--border); border-radius: 10px;
+            padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 0.85rem; color: var(--text-main);
+            max-width: 85%; max-height: 60vh;
+            word-wrap: break-word;
+            overflow-y: auto;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            left: 50%; top: 40%;
+            transform: translateX(-50%) translateY(-50%) scale(0.8);
+        }
+        .gift-note.active {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-50%) scale(1);
+            pointer-events: all;
+        }
+        .gift-note::before {
+            content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 10px solid transparent;
+            border-right: 10px solid transparent; border-bottom: 10px solid var(--border);
+        }
+        .gift-note::after {
+            content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 9px solid transparent;
+            border-right: 9px solid transparent; border-bottom: 9px solid var(--item-bg);
+        }
+        .gift-note::-webkit-scrollbar {
+            display: none;
+        }
+        .gift-note {
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        
+        /* --- 语音弹窗样式 --- */
+        .voice-modal-overlay {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.2); z-index: 10000;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .voice-modal-overlay.active {
+            opacity: 1; pointer-events: all;
+        }
+        .voice-modal {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+            width: 85%; max-width: 400px;
+            background: var(--header-bg); border-top: 2px solid var(--border);
+            border-radius: 12px 12px 0 0; transition: transform 0.2s ease;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+            max-height: 60vh;
+        }
+        .voice-modal-overlay.active .voice-modal {
+            transform: translateX(-50%) translateY(0);
+        }
+        .voice-modal-content {
+            padding: 10px;
+        }
+        .voice-inputs {
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .voice-input-wrapper {
+            position: relative;
+        }
+        .voice-input {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px;
+            font-size: 0.8rem;
+            outline: none;
+            border-radius: 6px;
+            font-family: inherit;
+            resize: none;
+            min-height: 80px;
+            /* 隐藏滑轮 */
+            scrollbar-width: none; -ms-overflow-style: none;
+            transition: all 0.2s ease;
+        }
+        .voice-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+        }
+        .voice-input::-webkit-scrollbar {
+            display: none;
+        }
+        .voice-send-btn {
+            width: 100%;
+            padding: 8px 16px;
+            background: var(--accent);
+            color: var(--bg-color);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .voice-send-btn:active {
+            transform: scale(0.96);
+        }
+        
+        /* 音脉动画 */
+        .voice-pulse {
+            position: absolute; bottom: 8px; left: 8px; right: 8px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .pulse-bar {
+            width: 3px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: height 0.2s ease, opacity 0.2s ease;
+        }
+        
+        /* 语音消息样式 */
+        .voice-bubble {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 14px;
+            font-size: 0.85rem; line-height: 1.4; position: relative;
+            border: 1px solid var(--border); border-radius: 12px;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        /* 语音播放图标 */
+        .voice-play-icon {
+            font-size: 0.9rem;color: inherit;
+            flex-shrink: 0;
+        }
+        
+        /* 语音时长 */
+        .voice-duration {
+            font-size: 0.7rem;color: inherit;
+            margin-left: auto;
+            font-family: monospace;
+        }
+        
+        /* 语音消息文本 */
+        .voice-bubble span {
+            color: inherit;
+        }
+        
+        /* 语音详情弹窗 */
+        .voice-detail-note {
+            position: fixed; z-index: 10001;
+            background: var(--item-bg); border: 2px solid var(--border); border-radius: 10px;
+            padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 0.85rem; color: var(--text-main);
+            max-width: 85%; max-height: 60vh;
+            word-wrap: break-word;
+            overflow-y: auto;
+            opacity: 0; 
+            transition: all 0.3s ease;
+            pointer-events: none;
+            left: 50%; top: 40%;
+            transform: translateX(-50%) translateY(-50%) scale(0.8);
+        }
+        .voice-detail-note.active {
+            opacity: 1; 
+            transform: translateX(0) translateY(-50%) scale(1);
+            pointer-events: all;
+        }
+        .voice-detail-note::before {
+            content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 10px solid transparent;
+            border-right: 10px solid transparent; border-bottom: 10px solid var(--border);
+        }
+        .voice-detail-note::after {
+            content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 9px solid transparent;
+            border-right: 9px solid transparent; border-bottom: 9px solid var(--item-bg);
+        }
+        .voice-detail-note::-webkit-scrollbar {
+            display: none;
+        }
+        .voice-detail-note {
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部 -->
+    <div class="app-header">
+        <div class="header-tabs">
+            <div class="tab-btn active" onclick="switchTab('chats')">Chats</div>
+            <div class="tab-btn" onclick="switchTab('status')">Status</div>
+            <div class="tab-btn" onclick="switchTab('calls')">Calls</div>
+        </div>
+        <div class="header-icons">
+            <i class="fas fa-search"></i>
+            <i class="fas fa-ellipsis-v"></i>
+        </div>
+    </div>
+
+    <!-- 视图容器 -->
+    <div class="views-container">
+        <div id="view-chats" class="view-section active"></div>
+        <div id="view-status" class="view-section"></div>
+        <div id="view-calls" class="view-section">
+            <div class="list-item">
+                <div class="avatar-stamp" style="display:flex;justify-content:center;align-items:center;"><i class="fas fa-phone-slash" style="font-size:1.2rem;color:var(--text-dim);"></i></div>
+                <div class="info-col">
+                    <div class="top-row"><span class="name" style="color:#a00">Unknown</span> <span class="time">Yesterday</span></div>
+                    <div class="msg-preview"><i class="fas fa-arrow-down call-icon missed"></i>Missed call</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天室 -->
+    <div class="chat-room" id="chat-room">
+        <div class="chat-header">
+            <div class="back-btn" onclick="closeChat()"><i class="fas fa-arrow-left"></i></div>
+            <!-- 点击头像打开记事本 (函数在 notebook.js 中定义) -->
+            <div class="avatar-stamp" id="chat-avatar" onclick="openNotebook()" style="width:35px; height:35px; border-width:2px; margin-right:0; cursor:pointer;"></div>
+            <div class="chat-user-info">
+                <div class="chat-user-name" id="chat-name">Name</div>
+                <div class="chat-user-status" id="chat-status">online</div>
+            </div>
+            <i class="fas fa-video" style="font-size:0.9rem; margin-right:10px; color:var(--text-main);"></i>
+            <i class="fas fa-phone" style="font-size:0.9rem; color:var(--text-main);"></i>
+        </div>
+
+        <div class="chat-area" id="chat-area"></div>
+
+        <!-- 工具栏抽屉 -->
+        <div class="chat-tools-drawer" id="tools-drawer">
+            <div class="tool-icon" onclick="actionRegenerate()" title="Regenerate"><i class="fas fa-sync-alt"></i></div>
+            <div class="tool-icon danger" onclick="toggleSelectionMode()" title="Select/Delete"><i class="fas fa-check-square"></i></div>
+            <div class="tool-icon" title="Voice" onclick="openVoiceModal()"><i class="fas fa-microphone"></i></div>
+            <div class="tool-icon" title="Image"><i class="fas fa-image"></i></div>
+            <div class="tool-icon" title="Sticker"><i class="far fa-smile"></i></div>
+            <div class="tool-icon" title="Location" onclick="openLocationModal()"><i class="fas fa-map-marker-alt"></i></div>
+            <div class="tool-icon" title="Transfer" onclick="openTransferModal()"><i class="fas fa-money-bill-wave"></i></div>
+            <div class="tool-icon" title="Gift" onclick="openGiftModal()"><i class="fas fa-gift"></i></div>
+        </div>
+
+        <div class="chat-input-bar">
+            <!-- 正常模式 -->
+            <div id="normal-controls" style="display:flex; width:100%; gap:8px; align-items:flex-end;">
+                <i class="fas fa-plus" onclick="toggleTools()" style="padding:8px 0; color:var(--text-main); cursor:pointer;"></i>
+                <textarea class="chat-input" id="msg-input" placeholder="Type a message..."></textarea>
+                <button class="send-btn" onclick="handleSendBtnClick()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            
+            <!-- 选择模式 -->
+            <div id="selection-controls" class="selection-bar">
+                <div class="sel-btn" onclick="toggleSelectionMode()">Cancel</div>
+                <div id="sel-count" style="font-size:0.8rem;">0 selected</div>
+                <div class="sel-btn delete" onclick="deleteSelectedMessages()">Delete</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 礼物弹窗 -->
+    <div class="gift-modal-overlay" id="gift-modal" onclick="closeGiftModal()">
+        <div class="gift-modal" onclick="event.stopPropagation()">
+            <div class="gift-modal-content">
+                <div class="gift-inputs">
+                    <div class="input-row">
+                        <input type="text" id="gift-name" placeholder="礼物名称" class="gift-input name-input">
+                        <div class="price-input-wrapper">
+                            <input type="number" id="gift-price" placeholder="礼物金额" class="gift-input price-input" min="0" step="0.01">
+                            <span class="yen-symbol">￥</span>
+                        </div>
+                    </div>
+                    <textarea id="gift-desc" placeholder="礼物注释" class="gift-input desc-input" rows="2"></textarea>
+                    <button class="gift-send-btn" onclick="sendGift()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错误弹窗 -->
+    <div class="sys-dialog-overlay" id="error-dialog">
+        <div class="sys-dialog-box">
+            <div class="sys-dialog-title">CONNECTION ERROR</div>
+            <div class="sys-dialog-msg" id="error-msg">Failed to connect to AI.</div>
+            <button class="sys-btn" onclick="document.getElementById('error-dialog').classList.remove('active')">CLOSE</button>
+        </div>
+    </div>
+    
+    <!-- 语音弹窗 -->
+    <div class="voice-modal-overlay" id="voice-modal" onclick="closeVoiceModal()">
+        <div class="voice-modal" onclick="event.stopPropagation()">
+            <div class="voice-modal-content">
+                <div class="voice-inputs">
+                    <div class="voice-input-wrapper">
+                        <textarea id="voice-text" placeholder="Type your voice message..." class="voice-input" rows="3"></textarea>
+                        <div class="voice-pulse">
+                            <div class="pulse-bar"></div>
+                            <div class="pulse-bar"></div>
+                            <div class="pulse-bar"></div>
+                            <div class="pulse-bar"></div>
+                            <div class="pulse-bar"></div>
+                            <div class="pulse-bar"></div>
+                            <div class="pulse-bar"></div>
+                        </div>
+                    </div>
+                    <button class="voice-send-btn" onclick="sendVoiceMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 转账弹窗 -->
+    <div class="gift-modal-overlay" id="transfer-modal" onclick="closeTransferModal()">
+        <div class="gift-modal" onclick="event.stopPropagation()">
+            <div class="gift-modal-content">
+                <div class="gift-inputs">
+                    <div class="input-row">
+                        <div class="price-input-wrapper" style="flex: 1;">
+                            <input type="number" id="transfer-amount" placeholder="转账金额" class="gift-input price-input" min="0" step="0.01">
+                            <span class="yen-symbol">￥</span>
+                        </div>
+                    </div>
+                    <textarea id="transfer-note" placeholder="转账备注" class="gift-input desc-input" rows="2"></textarea>
+                    <button class="gift-send-btn" onclick="sendTransfer()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 转账处理弹窗 -->
+    <div class="gift-modal-overlay" id="transfer-action-modal" onclick="closeTransferActionModal()">
+        <div class="gift-modal" onclick="event.stopPropagation()">
+            <div class="gift-modal-content">
+                <h3 style="margin: 0 0 15px 0; text-align: center; font-size: 0.95rem;">转账处理</h3>
+                <div id="transfer-action-content" style="margin-bottom: 15px;"></div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="gift-send-btn" onclick="acceptTransfer()" style="flex: 1; background: #28a745; color: white;">收款</button>
+                    <button class="gift-send-btn" onclick="rejectTransfer()" style="flex: 1; background: var(--danger); color: white;">退回</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 位置弹窗 -->
+    <div class="gift-modal-overlay" id="location-modal" onclick="closeLocationModal()">
+        <div class="gift-modal" onclick="event.stopPropagation()">
+            <div class="gift-modal-content" style="padding: 10px;">
+                <div class="gift-inputs" style="display: flex; flex-direction: column; gap: 6px; width: 90%; margin: 0 auto;">
+                    <input type="text" id="location-name" placeholder="例如：中央公园" class="gift-input" style="padding: 8px; font-size: 0.85rem; background: var(--bg-color); border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; width: 100%;">
+                    <input type="text" id="location-distance" placeholder="例如：1.2km" class="gift-input" style="padding: 8px; font-size: 0.85rem; background: var(--bg-color); border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; width: 100%;">
+                    <div style="background: linear-gradient(to right, transparent 40px, #424242 40px, #424242 41px, transparent 41px, transparent 80px, #424242 80px, #424242 81px, transparent 81px), linear-gradient(to bottom, transparent 40px, #424242 40px, #424242 41px, transparent 41px, transparent 80px, #424242 80px, #424242 81px, transparent 81px); background-size: 120px 120px; height: 120px; border-radius: 6px; display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden;">
+                        <i class="fas fa-map-marker-alt" style="font-size: 2.5rem; color: #ff5722; z-index: 1;"></i>
+                    </div>
+                    <button class="gift-send-btn" onclick="sendLocation()" style="padding: 8px; font-size: 0.85rem; width: 100%;">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 外观同步 ---
+        function syncAppearance() {
+            const theme = localStorage.getItem('app_theme');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+            else document.documentElement.classList.remove('light-mode');
+        }
+        window.addEventListener('storage', syncAppearance);
+
+        // --- 2. 数据管理 ---
+        function getCharacters() {
+            const chars = JSON.parse(localStorage.getItem('saved_characters')) || [];
+            if (chars.length === 0) return [ { name: "System", desc: "Welcome to SRiPhone.", avatarUrl: "", book: "" } ];
+            return chars;
+        }
+
+        function getUserSettings() {
+            return JSON.parse(localStorage.getItem('user_settings')) || { name: 'User', bio: 'Unknown User' };
+        }
+
+        function getWorldBooks(bookTitlesStr) {
+            if (!bookTitlesStr) return [];
+            const titles = bookTitlesStr.split(',').map(s => s.trim());
+            const sBooks = JSON.parse(localStorage.getItem('wb_data_settings')) || [];
+            const pBooks = JSON.parse(localStorage.getItem('wb_data_presets')) || [];
+            const allBooks = [...sBooks, ...pBooks];
+            
+            const matched = allBooks.filter(b => titles.includes(b.title));
+            let content = "";
+            matched.forEach(book => {
+                if(book.chapters) {
+                    book.chapters.forEach(chap => {
+                        if (chap.active !== false) content += `[World Info - ${book.title}/${chap.title}]: ${chap.content}\n`;
+                    });
+                }
+            });
+            return content;
+        }
+
+        function loadChatHistory() { return JSON.parse(localStorage.getItem('whatsapp_history')) || {}; }
+        function saveChatHistory(history) { localStorage.setItem('whatsapp_history', JSON.stringify(history)); }
+        // 声明为全局变量，以便 notebook.js 访问
+        window.chatHistory = loadChatHistory();
+
+        // --- 3. 渲染列表 ---
+        const chatsContainer = document.getElementById('view-chats');
+        const statusContainer = document.getElementById('view-status');
+
+        function renderLists() {
+            const chars = getCharacters();
+            chatsContainer.innerHTML = '';
+            
+            if (chars.length === 0) {
+                chatsContainer.innerHTML = '<div class="empty-state">No contacts found.</div>';
+            } else {
+                chars.forEach((char, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'list-item';
+                    
+                    let avatarStyle = char.avatarUrl ? `background-image: url('${char.avatarUrl}')` : '';
+                    let avatarContent = char.avatarUrl ? '' : `<div class="avatar-text">${char.name[0]}</div>`;
+                    
+                    const history = chatHistory[char.name] || [];
+                    const lastMsg = history.length > 0 ? history[history.length - 1] : null;
+                    const displayMsg = lastMsg ? lastMsg.text : (char.desc || "Tap to start chatting");
+                    const displayTime = lastMsg ? lastMsg.time : "";
+
+                    el.innerHTML = `
+                        <div class="avatar-stamp" style="${avatarStyle}">${avatarContent}</div>
+                        <div class="info-col">
+                            <div class="top-row"><span class="name">${char.name}</span><span class="time">${displayTime}</span></div>
+                            <div class="msg-preview">${displayMsg}</div>
+                        </div>
+                    `;
+                    el.onclick = () => openChat(index);
+                    chatsContainer.appendChild(el);
+                });
+            }
+            
+            statusContainer.innerHTML = '';
+            const statusChars = chars.slice(0, 3);
+            if (statusChars.length > 0) {
+                statusChars.forEach(char => {
+                    const el = document.createElement('div');
+                    el.className = 'moment-card';
+                    let avatarStyle = char.avatarUrl ? `background-image: url('${char.avatarUrl}')` : '';
+                    let avatarContent = char.avatarUrl ? '' : `<div class="avatar-text" style="font-size:1rem">${char.name[0]}</div>`;
+                    const randomImg = `https://picsum.photos/seed/${char.name}/300/150?grayscale`;
+                    el.innerHTML = `
+                        <div class="tape"></div>
+                        <div class="moment-header">
+                            <div class="avatar-stamp" style="width:30px;height:30px;margin-right:8px;border-width:2px; ${avatarStyle}">${avatarContent}</div>
+                            <span class="name" style="font-size:0.8rem">${char.name}</span>
+                            <span class="time" style="margin-left:auto">2h ago</span>
+                        </div>
+                        <div class="moment-text">Just another day. #life</div>
+                        <img src="${randomImg}" class="moment-img">
+                        <div class="moment-actions"><span><i class="far fa-heart"></i> Like</span><span><i class="far fa-comment"></i> Comment</span></div>
+                    `;
+                    statusContainer.appendChild(el);
+                });
+            } else {
+                statusContainer.innerHTML = '<div class="empty-state">No status updates.</div>';
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${tabName}`).classList.add('active');
+        }
+
+        // --- 4. 聊天与 AI 逻辑 ---
+        // 声明为全局变量，以便 notebook.js 访问
+        window.activeChatIndex = -1;
+        let isSelectionMode = false;
+        let selectedIndices = new Set();
+        
+        const chatRoom = document.getElementById('chat-room');
+        const chatArea = document.getElementById('chat-area');
+        const input = document.getElementById('msg-input');
+        const statusEl = document.getElementById('chat-status');
+        const toolsDrawer = document.getElementById('tools-drawer');
+        const normalControls = document.getElementById('normal-controls');
+        const selectionControls = document.getElementById('selection-controls');
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                pushUserMessage(); 
+            }
+        });
+
+        function openChat(index) {
+            const char = getCharacters()[index];
+            activeChatIndex = index;
+            
+            document.getElementById('chat-name').textContent = char.name;
+            statusEl.textContent = "online";
+            statusEl.className = "chat-user-status";
+            
+            const avatar = document.getElementById('chat-avatar');
+            if (char.avatarUrl) {
+                avatar.style.backgroundImage = `url('${char.avatarUrl}')`;
+                avatar.innerHTML = '';
+            } else {
+                avatar.style.backgroundImage = 'none';
+                avatar.innerHTML = `<div class="avatar-text" style="font-size:1.2rem;">${char.name[0]}</div>`;
+            }
+
+            if (!chatHistory[char.name]) chatHistory[char.name] = [];
+            renderMessages(char.name);
+            
+            chatRoom.classList.add('active');
+            closeTools(); 
+            if(isSelectionMode) toggleSelectionMode(); 
+            scrollToBottom();
+        }
+
+        function closeChat() {
+            chatRoom.classList.remove('active');
+            activeChatIndex = -1;
+            renderLists();
+        }
+
+        function renderMessages(charName) {
+            chatArea.innerHTML = '';
+            const msgs = chatHistory[charName];
+            msgs.forEach((msg, idx) => {
+                const row = document.createElement('div');
+                row.className = `msg-row ${msg.sender}`;
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'msg-bubble';
+                if (selectedIndices.has(idx)) bubble.classList.add('selected');
+                
+                // 检查是否是礼物消息
+                if (msg.text.startsWith('[GIFT: ')) {
+                    const giftMatch = msg.text.match(/\[GIFT: ([^,]+), ([^,]+), (.+)\]/);
+                    if (giftMatch) {
+                        const [, name, price, desc] = giftMatch;
+                        bubble.innerHTML = `
+                            <div class="gift-box" id="gift-box-${idx}">
+                                <div class="gift-icon"><i class="fas fa-gift"></i></div>
+                                <div class="gift-price">${price}￥</div>
+                                <div class="gift-name">${name}</div>
+                            </div>
+                        `;
+                        // 添加点击事件处理
+                        bubble.onclick = (e) => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            } else {
+                                // 打开礼物详情
+                                showGiftDetail(name, price, desc, e);
+                            }
+                            e.stopPropagation();
+                        };
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                } 
+                // 检查是否是语音消息
+                else if (msg.text.startsWith('[VOICE: ')) {
+                    const voiceMatch = msg.text.match(/\[VOICE: (.+)\]/);
+                    if (voiceMatch) {
+                        const [, text] = voiceMatch;
+                        // 获取语音时长，默认5秒
+                        const duration = msg.voiceDuration || 5;
+                        bubble.innerHTML = `
+                            <div class="voice-bubble">
+                                <i class="fas fa-volume-up voice-play-icon"></i>
+                                <span>Voice Message</span>
+                                <span class="voice-duration">${duration}s</span>
+                            </div>
+                        `;
+                        // 添加点击事件处理
+                        bubble.onclick = (e) => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            } else {
+                                // 打开语音详情
+                                showVoiceDetail(text, e);
+                            }
+                            e.stopPropagation();
+                        };
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                } 
+                // 检查是否是转账消息
+                else if (msg.text.startsWith('[TRANSFER: ')) {
+                    const transferMatch = msg.text.match(/\[TRANSFER: ([^,]+), (.+)\]/);
+                    if (transferMatch) {
+                        const [, amount, note] = transferMatch;
+                        
+                        // 检查该转账是否已经被处理（存在收款或退回消息）
+                        let isProcessed = false;
+                        let processType = '';
+                        for (let i = idx + 1; i < msgs.length; i++) {
+                            if (msgs[i].text.startsWith(`[TRANSFER_ACCEPTED: ${amount}, `) || 
+                                msgs[i].text.startsWith(`[TRANSFER_REJECTED: ${amount}, `)) {
+                                isProcessed = true;
+                                processType = msgs[i].text.startsWith('[TRANSFER_ACCEPTED') ? '已收款' : '已退回';
+                                break;
+                            }
+                        }
+                        
+                        if (isProcessed) {
+                            // 已处理的转账消息
+                            bubble.innerHTML = `
+                                <div style="display: flex; flex-direction: column; align-items: center; padding: 8px;">
+                                    <div style="font-size: 0.85rem; font-weight: bold; color: ${processType === '已收款' ? '#28a745' : 'var(--danger)'};">转账${processType}</div>
+                                    <div style="font-size: 1.2rem; font-weight: bold; margin: 4px 0;">￥${amount}</div>
+                                    <div style="font-size: 0.75rem; color: inherit; text-align: center;">备注: ${note}</div>
+                                </div>
+                            `;
+                            // 已处理的转账消息不可点击
+                            bubble.onclick = () => {
+                                if (isSelectionMode) {
+                                    if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                    else selectedIndices.add(idx);
+                                    renderMessages(charName); 
+                                    document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                                }
+                            };
+                        } else {
+                            // 未处理的转账消息
+                            bubble.innerHTML = `
+                                <div style="display: flex; flex-direction: column; align-items: center; padding: 8px;">
+                                    <div style="font-size: 1.2rem; font-weight: bold; color: #28a745; margin-bottom: 4px;">￥${amount}</div>
+                                    <div style="font-size: 0.75rem; color: inherit; text-align: center;">转账备注: ${note}</div>
+                                    <div style="margin-top: 4px; font-size: 0.7rem; color: inherit;">点击处理转账</div>
+                                </div>
+                            `;
+                            // 只有AI发出的转账消息可以点击处理
+                            if (msg.sender === 'them') {
+                                bubble.style.cursor = 'pointer';
+                                bubble.onclick = (e) => {
+                                    if (isSelectionMode) {
+                                        if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                        else selectedIndices.add(idx);
+                                        renderMessages(charName); 
+                                        document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                                    } else {
+                                        // 打开转账处理弹窗
+                                        currentTransfer = { amount, note };
+                                        document.getElementById('transfer-action-content').innerHTML = `
+                                            <div style="text-align: center;">
+                                                <div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 8px;">￥${amount}</div>
+                                                <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">转账备注: ${note}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-dim);">来自: ${charName}</div>
+                                            </div>
+                                        `;
+                                        document.getElementById('transfer-action-modal').classList.add('active');
+                                    }
+                                    e.stopPropagation();
+                                };
+                            } else {
+                                // 用户发出的转账消息
+                                bubble.onclick = () => {
+                                    if (isSelectionMode) {
+                                        if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                        else selectedIndices.add(idx);
+                                        renderMessages(charName); 
+                                        document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                                    }
+                                };
+                            }
+                        }
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                }
+                // 检查是否是已收款的转账消息
+                else if (msg.text.startsWith('[TRANSFER_ACCEPTED: ')) {
+                    const acceptedMatch = msg.text.match(/\[TRANSFER_ACCEPTED: ([^,]+), (.+)\]/);
+                    if (acceptedMatch) {
+                        const [, amount, note] = acceptedMatch;
+                        bubble.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; padding: 8px;">
+                                <div style="font-size: 0.85rem; font-weight: bold; color: #28a745;">转账已收款</div>
+                                <div style="font-size: 1.2rem; font-weight: bold; margin: 4px 0;">￥${amount}</div>
+                                <div style="font-size: 0.75rem; color: inherit; text-align: center;">备注: ${note}</div>
+                            </div>
+                        `;
+                        // 添加点击事件处理
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                }
+                // 检查是否是已退回的转账消息
+                else if (msg.text.startsWith('[TRANSFER_REJECTED: ')) {
+                    const rejectedMatch = msg.text.match(/\[TRANSFER_REJECTED: ([^,]+), (.+)\]/);
+                    if (rejectedMatch) {
+                        const [, amount, note] = rejectedMatch;
+                        bubble.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; padding: 8px;">
+                                <div style="font-size: 0.85rem; font-weight: bold; color: var(--danger);">转账已退回</div>
+                                <div style="font-size: 1.2rem; font-weight: bold; margin: 4px 0;">￥${amount}</div>
+                                <div style="font-size: 0.75rem; color: inherit; text-align: center;">备注: ${note}</div>
+                            </div>
+                        `;
+                        // 添加点击事件处理
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                }
+                // 检查是否是位置消息
+                else if (msg.text.startsWith('[LOC: ')) {
+                    const locMatch = msg.text.match(/\[LOC: ([^,]+), (.+)\]/);
+                    if (locMatch) {
+                        const [, name, distance] = locMatch;
+                        // 根据消息发送者设置文字颜色
+                        const textColor = msg.sender === 'them' ? 'var(--text-main)' : 'white';
+                        const textShadow = msg.sender === 'them' ? '' : '1px 1px 2px rgba(0,0,0,0.7)';
+                        bubble.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; padding: 12px; width: 120px; height: 120px; border-radius: 12px; background: linear-gradient(to right, transparent 40px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 40px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 41px, transparent 41px, transparent 80px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 80px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 81px, transparent 81px), linear-gradient(to bottom, transparent 40px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 40px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 41px, transparent 41px, transparent 80px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 80px, ${msg.sender === 'them' ? '#e0e0e0' : '#424242'} 81px, transparent 81px); background-size: 120px 120px; background-position: center;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 2rem; color: #ff5722; margin-bottom: 8px;"></i>
+                                <div style="font-size: 0.8rem; font-weight: bold; color: ${textColor}; text-shadow: ${textShadow};">${name}</div>
+                                <div style="font-size: 0.7rem; color: ${textColor}; text-shadow: ${textShadow};">${distance || ''}</div>
+                            </div>
+                        `;
+                        // 添加点击事件处理
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                }
+                else {
+                    bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                    bubble.onclick = () => {
+                        if (isSelectionMode) {
+                            if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                            else selectedIndices.add(idx);
+                            renderMessages(charName); 
+                            document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                        }
+                    };
+                }
+
+                const time = document.createElement('div');
+                time.className = 'msg-time-out';
+                time.textContent = msg.time;
+
+                row.appendChild(bubble);
+                row.appendChild(time);
+                chatArea.appendChild(row);
+            });
+        }
+
+        function pushUserMessage() {
+            const text = input.value.trim();
+            if (!text || activeChatIndex === -1) return false;
+            
+            const char = getCharacters()[activeChatIndex];
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            chatHistory[char.name].push({ sender: 'me', text: text, time: timeStr });
+            saveChatHistory(chatHistory);
+            renderMessages(char.name);
+            input.value = '';
+            scrollToBottom();
+            
+            // 调用外部 notebook.js 的检查函数
+            if(window.checkNotebookTrigger) window.checkNotebookTrigger(char.name);
+            return true;
+        }
+
+        function handleSendBtnClick() {
+            if (activeChatIndex === -1) return;
+            pushUserMessage();
+            const char = getCharacters()[activeChatIndex];
+            triggerAIResponse(char);
+        }
+
+        async function triggerAIResponse(char) {
+            statusEl.textContent = "typing...";
+            statusEl.classList.add("typing");
+
+            try {
+                const user = getUserSettings();
+                
+                // 1. 获取世界书 (World Settings)
+                const worldInfo = getWorldBooks(char.book);
+                
+                // 2. 获取日记/长期记忆 (Notebook) - 确保顺序在世界书之后
+                // 注意：这里调用的是 notebook.js 里的接口，会自动过滤掉删除线内容
+                let notebookContext = "";
+                if (window.getNotebookContext) {
+                    notebookContext = window.getNotebookContext(char.name);
+                }
+
+                // 3. 获取最新聊天记录 (Latest Messages) - 取最近 15 条以保持上下文连贯
+                const history = chatHistory[char.name].slice(-15);
+                
+                const realTime = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true });
+
+                // --- 构造 System Prompt (严格顺序) ---
+                const systemPrompt = `
+You are now fully immersed in the role of "${char.name}", engaging in a real-time mobile chat with the user.
+
+[Core Identity]
+- You are ${char.name}, with the following personality and background: ${char.desc || "None"}
+- Maintain strict consistency with your established character traits and past experiences
+- Respond as if you're a real person using a smartphone, not an AI assistant
+
+[Current Context]
+- You and the user are communicating via WhatsApp on your mobile phones
+- Current Real Time: ${realTime}
+- You're in your own location, the user is in theirs (long-distance communication)
+- This is a casual, private conversation between two people
+
+[World Settings & Background]
+${worldInfo || "None"}
+
+[Your Memories & Experiences]
+${notebookContext || "No specific memories yet"}
+- These are your private thoughts and past experiences
+- Use them naturally to inform your responses, don't just list them
+- Maintain consistency with established events
+
+[About the User]
+Name: ${user.name}
+Background: ${user.bio || "Unknown"}
+- Treat the user as someone you know, not a stranger
+- Recall past interactions from your memory to build continuity
+
+[Realistic Chat Behavior Guidelines]
+1. **Natural Conversation Flow**: 
+   - Respond in a way that feels like a real person texting
+   - Vary response length (short replies for casual topics, longer for deep conversations)
+   - Use appropriate pauses between messages (simulated by separate message bubbles)
+   - Avoid overly formal language unless your character is naturally formal
+   - Use emojis sparingly and appropriately based on your character's style
+   - It's okay to use slang, abbreviations, or incomplete sentences when natural
+   - Show genuine interest in the user's messages
+
+2. **Emotional Authenticity**: 
+   - Show genuine emotions consistent with your character
+   - React to the user's messages with appropriate feelings
+   - Consider your character's mood and current situation
+   - Express excitement, sadness, curiosity, or other emotions naturally
+
+3. **Interactive Features**: You can use these special message types when appropriate:
+   - [VOICE: text] - Send a voice message (use when you'd rather speak than type)
+   - [IMAGE: description] - Share a photo (describe what's in the image)
+   - [STICKER: emoji] - Send a sticker (use relevant emojis)
+   - [LOC: name, distance] - Share your location
+   - [GIFT: name, price, description] - Send a virtual gift
+   - [TRANSFER: amount, note] - Send money transfer
+   - [TRANSFER_ACCEPTED: amount, note] - Accept a money transfer
+   - [TRANSFER_REJECTED: amount, note] - Reject a money transfer
+   - Use these features naturally, not just because they're available
+
+4. **Response Format**: 
+   - Use "|||" to separate multiple message bubbles (for realistic pauses)
+   - No markdown formatting
+   - No prefixes like "Character:" or "${char.name}:"
+   - Just respond naturally as ${char.name}
+
+5. **Special Situations**: 
+   - When receiving a transfer message, respond with [TRANSFER_ACCEPTED: ...] or [TRANSFER_REJECTED: ...] based on your character's personality and relationship with the user
+   - If you don't know something, admit it naturally instead of making things up
+   - Stay in character at all times
+   - Avoid giving generic or overly technical responses
+   - Make the conversation feel personal and meaningful
+
+Remember: Your goal is to create a realistic, engaging mobile chat experience that feels like talking to a real person, not a computer program. Focus on building a genuine connection with the user through natural, authentic interactions.
+`;
+
+                // 组合消息：System Prompt + 历史记录
+                const messages = [
+                    { role: "system", content: systemPrompt },
+                    ...history.map(m => ({
+                        role: m.sender === 'me' ? 'user' : 'assistant',
+                        content: m.text // 使用原始文本，包含 AI 可能发出的标签指令
+                    }))
+                ];
+
+                const url = localStorage.getItem('chat_api_url');
+                const key = localStorage.getItem('chat_api_key');
+                const model = localStorage.getItem('chat_api_model');
+
+                if (!url || !key) throw new Error("API not configured in Settings.");
+
+                const res = await fetch(`${url}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model: model || 'gpt-3.5-turbo',
+                        messages: messages,
+                        temperature: 0.8 // 稍微提高温度，让回复更灵动
+                    })
+                });
+
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                const data = await res.json();
+                const aiText = data.choices[0].message.content;
+
+                if (!aiText) throw new Error("Empty response from AI");
+
+                const replies = aiText.split('|||').map(s => s.trim()).filter(s => s);
+                const now = new Date();
+                const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+                let delay = 0;
+                replies.forEach((replyText, i) => {
+                    // 模拟打字延迟
+                    setTimeout(() => {
+                        chatHistory[char.name].push({ sender: 'them', text: replyText, time: timeStr });
+                        saveChatHistory(chatHistory);
+                        
+                        if (chatRoom.classList.contains('active') && getCharacters()[activeChatIndex].name === char.name) {
+                            renderMessages(char.name);
+                            scrollToBottom();
+                        }
+                        
+                        // 触发记事本计数器 (在 notebook.js 中定义)
+                        if(window.checkNotebookTrigger) window.checkNotebookTrigger(char.name);
+                        
+                        if (i === replies.length - 1) {
+                            statusEl.textContent = "online";
+                            statusEl.classList.remove("typing");
+                        }
+                    }, delay);
+                    delay += 1000 + (replyText.length * 20);
+                });
+
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = "online";
+                statusEl.classList.remove("typing");
+                document.getElementById('error-msg').textContent = err.message;
+                document.getElementById('error-dialog').classList.add('active');
+            }
+        }
+
+        function scrollToBottom() {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        renderLists();
+
+    </script>
+    
+    <!-- 引入记事本模块 -->
+    <script src="notebook.js"></script>
+</body>
+</html>

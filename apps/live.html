@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Template</title>
+    <!-- 引入 FontAwesome 图标库 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 1. 全局变量定义 (与系统保持一致) --- */
+        :root {
+            /* 深色模式默认值 */
+            --bg-color: #111111;       /* 背景色 */
+            --card-bg: #1a1a1a;        /* 卡片/气泡背景 */
+            --text-main: #d0d0d0;      /* 主文字色 */
+            --text-dim: #666666;       /* 次要文字色 */
+            --border-color: #333333;   /* 边框色 */
+            --accent-color: #d0d0d0;   /* 强调色 */
+            --shadow: rgba(0,0,0,0.5); /* 阴影 */
+            --font-main: 'Courier New', Courier, monospace; /* 默认字体 */
+            
+            /* App 特有变量 (可根据具体App修改) */
+            --input-bg: #080808;
+            --btn-bg: #222;
+            --btn-text: #d0d0d0;
+        }
+
+        /* 浅色模式覆盖 */
+        body.light-mode {
+            --bg-color: #f4f4f4;
+            --card-bg: #ffffff;
+            --text-main: #222222;
+            --text-dim: #888888;
+            --border-color: #cccccc;
+            --accent-color: #000000;
+            --shadow: rgba(0,0,0,0.1);
+            
+            --input-bg: #ffffff;
+            --btn-bg: #e0e0e0;
+            --btn-text: #000;
+        }
+
+        /* --- 2. 基础重置 --- */
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden; /* 禁止 body 滚动，使用内部容器滚动 */
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* --- 3. 布局容器 --- */
+        
+        /* 顶部工具栏 (可选，如果 App 需要搜索栏或 Tab) */
+        .app-header {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-color);
+            z-index: 10;
+            flex-shrink: 0; /* 防止被压缩 */
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* 主要内容滚动区 */
+        .content-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            /* 隐藏滚动条但允许滚动 */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        .content-container::-webkit-scrollbar { display: none; }
+
+        /* 底部操作栏 (可选，如输入框) */
+        .app-footer {
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-color);
+            flex-shrink: 0;
+        }
+
+        /* --- 4. 常用通用组件样式 (可以直接用) --- */
+        
+        /* 卡片样式 (用于商品、帖子等) */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 2px 2px 5px var(--shadow);
+        }
+
+        /* 输入框样式 */
+        .input-box {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 20px;
+            outline: none;
+            font-family: inherit;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            background: var(--btn-bg);
+            color: var(--btn-text);
+            border: 1px solid var(--border-color);
+            padding: 6px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+    </style>
+    <!-- 动态字体样式插入点 -->
+    <style id="custom-font-style"></style>
+</head>
+<body>
+
+    <!-- 1. 顶部 (可选) -->
+    <!-- <div class="app-header">
+        <span>App Title</span>
+        <i class="fas fa-search"></i>
+    </div> -->
+
+    <!-- 2. 内容区域 (在这里写你的 HTML) -->
+    <div class="content-container" id="app-content">
+        
+        <!-- 示例内容 -->
+        <div style="text-align: center; margin-top: 50px; color: var(--text-dim);">
+            <i class="fas fa-hammer" style="font-size: 2rem; margin-bottom: 10px;"></i>
+            <p>Work in Progress</p>
+        </div>
+
+    </div>
+
+    <!-- 3. 底部 (可选) -->
+    <!-- <div class="app-footer">
+        <input type="text" class="input-box" placeholder="Type something...">
+    </div> -->
+
+    <script>
+        // ===========================================
+        //       核心同步逻辑 (不要修改这部分)
+        // ===========================================
+        function syncAppearance() {
+            // 1. 同步主题 (Light/Dark)
+            const theme = localStorage.getItem('app_theme');
+            if (theme === 'light') document.body.classList.add('light-mode');
+            else document.body.classList.remove('light-mode');
+
+            // 2. 同步字体 (Font Face)
+            const fonts = JSON.parse(localStorage.getItem('custom_fonts')) || [];
+            const activeFont = localStorage.getItem('active_font_name');
+            
+            let css = '';
+            fonts.forEach(f => { 
+                css += `@font-face { font-family: '${f.name}'; src: url('${f.url}'); }`; 
+            });
+            
+            const styleTag = document.getElementById('custom-font-style');
+            if (styleTag.textContent !== css) styleTag.textContent = css;
+
+            // 3. 应用当前字体
+            const root = document.documentElement;
+            if (activeFont && activeFont !== 'Default') {
+                root.style.setProperty('--font-main', `'${activeFont}', sans-serif`);
+            } else {
+                root.style.setProperty('--font-main', "'Courier New', Courier, monospace");
+            }
+        }
+
+        // 初始化并监听变化
+        syncAppearance();
+        window.addEventListener('storage', syncAppearance); // 监听其他窗口的改动
+        setInterval(syncAppearance, 1000); // 轮询作为保险，防止iframe有时收不到事件
+
+        // ===========================================
+        //       App 逻辑写在下面
+        // ===========================================
+        
+        console.log("App Loaded");
+
+    </script>
+</body>
+</html>

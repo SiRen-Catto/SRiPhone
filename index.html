@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 开启 iOS Web App 全屏模式 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <!-- 设置状态栏颜色 (可选: black, default, black-translucent) -->
+    <!-- 配合你的黑色笔记风格，black-translucent 效果最好 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- 设置添加到主屏幕后的标题 -->
+    <meta name="apple-mobile-web-app-title" content="SRiPhone">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRiPhone</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 全局变量 --- */
+        :root {
+            --bg-color: #050505;
+            --phone-case: #0a0a0a;
+            --phone-border: #222222;
+            --screen-bg: #000000;
+            --paper-dark: #111111;
+            --paper-light: #1a1a1a;
+            --text-main: #d0d0d0;
+            --text-dim: #555555;
+            --border-color: #333333;
+            --shadow-color: rgba(0,0,0,0.8);
+            --input-bg: #080808;
+            --btn-bg: #222;
+            --btn-hover: #333;
+            --error-bg: #800;
+            --error-text: #fff;
+            --main-font: 'Courier New', Courier, monospace;
+            --app-header-bg: rgba(17, 17, 17, 0.95);
+        }
+
+        body.light-mode {
+            --bg-color: #e0e0e0;
+            --phone-case: #ffffff;
+            --phone-border: #000000;
+            --screen-bg: #ffffff;
+            --paper-dark: #f4f4f4;
+            --paper-light: #ffffff;
+            --text-main: #000000;
+            --text-dim: #333333;
+            --border-color: #000000;
+            --shadow-color: rgba(0,0,0,0.2);
+            --input-bg: #fff;
+            --btn-bg: #f0f0f0;
+            --btn-hover: #e0e0e0;
+            --error-bg: #ff3333;
+            --app-header-bg: rgba(244, 244, 244, 0.95);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.4s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; 
+        }
+
+        body {
+            margin: 0; padding: 0; height: 100vh; display: flex; justify-content: center; align-items: center;
+            background-color: var(--bg-color); font-family: var(--main-font); color: var(--text-main); overflow: hidden;
+        }
+
+        .phone-container {
+            width: 380px; height: 770px; background-color: var(--phone-case); border-radius: 42px; padding: 8px;
+            box-shadow: 0 0 0 2px #000, 0 20px 50px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,0,0,0.05);
+            position: relative; display: flex; flex-direction: column; border: 4px solid var(--phone-border);
+        }
+        /* 屏幕容器 */
+        .screen { 
+            background-color: var(--screen-bg); border-radius: 30px; flex: 1; 
+            position: relative; overflow: hidden; 
+            border: 2px solid var(--border-color); box-shadow: inset 0 0 30px rgba(0,0,0,0.05); 
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E"); 
+        }
+        
+        /* 视图切换层 */
+        .view-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.4s ease;
+            will-change: transform, opacity;
+            background-color: var(--screen-bg);
+        }
+
+        /* 桌面 */
+        #desktop-view { z-index: 10; transform: scale(1); opacity: 1; }
+        #desktop-view.hidden { transform: scale(0.9); opacity: 0; pointer-events: none; }
+
+        /* 全屏应用 */
+        #app-view { z-index: 20; transform: scale(1.1); opacity: 0; pointer-events: none; background-color: var(--paper-dark); }
+        #app-view.active { transform: scale(1); opacity: 1; pointer-events: all; }
+
+        /* 应用导航栏 */
+        /* --- index.html 的 <style> 中 --- */
+
+            .app-navbar {
+            height: 45px;  /* 修改这里：原 60px -> 45px */
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            border-bottom: 2px solid var(--border-color); 
+            padding: 0 15px;
+            background: var(--app-header-bg); 
+            backdrop-filter: blur(5px);
+            position: relative; 
+            flex-shrink: 0; 
+            z-index: 5;
+        }
+
+        .back-btn { 
+            position: absolute; 
+            left: 10px;
+            font-size: 1rem;
+            cursor: pointer; 
+            color: var(--text-main); 
+            width: 30px;
+            height: 30px;
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .app-title { 
+            font-weight: bold; 
+            font-size: 0.9rem;
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+        .app-content-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .app-placeholder { color: var(--text-dim); font-style: italic; text-align: center; margin-top: 50px; }
+
+        /* 桌面组件 */
+        .header-widget { text-align: center; padding: 55px 20px 10px; position: relative; flex-shrink: 0; }
+        .clock-card { background-color: var(--paper-dark); padding: 10px 30px; border: 3px dashed var(--border-color); display: inline-block; transform: rotate(1deg); box-shadow: 3px 3px 0px var(--shadow-color); border-radius: 4px; }
+        .time { font-size: 2.5rem; font-weight: bold; letter-spacing: 2px; color: var(--text-main); }
+        .date { font-size: 0.9rem; color: var(--text-dim); margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 5px; font-weight: bold; }
+
+        /* --- 修改开始：邮票风格图标 & 编辑模式 --- */
+        
+        /* 1. 编辑控制栏 - 移至屏幕底端 */
+        .edit-controls {
+            position: fixed;
+            bottom: 0; left: 50%; transform: translateX(-50%);
+            display: flex; justify-content: center; gap: 12px; align-items: center;
+            z-index: 100;
+            opacity: 0; pointer-events: none; transform: translateX(-50%) scale(0.9);
+            transition: 0.3s ease;
+            background: rgba(0, 0, 0, 0.7); 
+            padding: 5px 8px; border-radius: 20px 20px 0 0;
+            backdrop-filter: blur(8px);
+        }
+        .edit-controls.active { 
+            opacity: 1; pointer-events: all; transform: translateX(-50%) scale(1);
+        }
+        .edit-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 1.5px solid #fff; color: #fff;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 0.95rem; cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            background: #222; transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .edit-btn:active { transform: scale(0.95); }
+        .edit-btn.save { background: #5cc976; border-color: #28a745; }
+        .edit-btn.cancel { background: #d4747e; border-color: #dc3545; }
+        .edit-btn.reset { background: #4a90e2; border-color: #2e5c99; }
+
+        /* 编辑模式下的样式调整 */
+        body.is-editing .app-item { transform: scale(0.93); opacity: 0.85; }
+        body.is-editing .header-widget { opacity: 0.5; }
+        
+        /* 移动端编辑控制栏适配 */
+        @media (max-width: 480px) {
+            .edit-controls {
+                bottom: 85px; gap: 8px; padding: 6px 10px;
+            }
+            .edit-btn {
+                width: 32px; height: 32px; font-size: 0.8rem;
+                border-width: 1px;
+            }
+        }
+
+        /* 2. 邮票/贴纸风格 APP 图标 */
+        .app-grid { 
+            flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); 
+            gap: 20px; padding: 20px 30px; /* 增加间距 */
+            overflow-y: auto; align-content: start; 
+            /* 关键：防止长按选中文字 */
+            user-select: none; 
+        }
+        .app-grid::-webkit-scrollbar { width: 0; }
+
+        .app-item { 
+            /* --- 核心修改：邮票形状 --- */
+            
+            /* 1. 设置边框宽度，这里就是"齿孔"区域的宽度 */
+            border: 5px solid transparent;
+            
+            /* 2. 背景魔法：双层背景 */
+            background-image: 
+                /* 上层：实心背景，盖住中间的内容 */
+                linear-gradient(var(--paper-light), var(--paper-light)),
+                /* 下层：全是孔的背景（径向渐变） */
+                radial-gradient(circle, transparent 4px, var(--paper-light) 4.5px);
+            
+            /* 3. 背景裁剪：上层只显示在内容区，下层显示在边框区 */
+            background-clip: padding-box, border-box;
+            background-origin: padding-box, border-box;
+            
+            /* 4. 齿孔的大小和排列 */
+            background-size: 100% 100%, 15px 15px; /* 15px是每个孔的间距 */
+            background-repeat: no-repeat, round;   /* round 会自动调整间距保证孔是完整的 */
+            
+            /* --- 其他样式 --- */
+            height: 85px; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            cursor: pointer; position: relative; 
+            transition: transform 0.2s; 
+            
+            /* 关键：因为形状不规则，原来的 box-shadow 会是个方块，很难看 */
+            /* 改用 filter: drop-shadow，它能完美贴合邮票的齿孔边缘 */
+            box-shadow: none;
+            filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.2));
+            
+            /* 稍微调整圆角，让四个角的齿孔自然一点 */
+            border-radius: 4px; 
+        }
+
+        /* 随机旋转效果 (保留原味) */
+        .app-item:nth-child(odd) { transform: rotate(-2deg); }
+        .app-item:nth-child(even) { transform: rotate(2deg); }
+        .app-item:nth-child(3n) { transform: rotate(1deg); }
+
+        /* 悬停效果 */
+        .app-item:hover { 
+            transform: scale(1.05) rotate(0deg) !important; 
+            z-index: 10; 
+            border-color: var(--text-main); 
+            border-style: solid; /* 悬停时变实线 */
+            /* 悬停时背景变深一点 */
+            background-image: 
+                linear-gradient(var(--paper-dark), var(--paper-dark)),
+                radial-gradient(circle, transparent 4px, var(--paper-dark) 4.5px);
+        }
+        
+        .app-icon { font-size: 1.8rem; margin-bottom: 8px; color: var(--text-dim); transition: color 0.3s; }
+        .app-item:hover .app-icon { color: var(--text-main); }
+        .app-name { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; font-family: 'Courier New', Courier, monospace; letter-spacing: -0.5px; }
+        .app-item:hover .app-name { color: var(--text-main); }
+        
+        /* 编辑模式下的样式调整 */
+        @keyframes jiggle {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(-2px) rotate(-1deg); }
+            75% { transform: translateX(2px) rotate(1deg); }
+        }
+        .app-item.editing {
+            animation: jiggle 0.25s infinite ease-in-out;
+            cursor: grab;
+            z-index: 50;
+            /* 编辑模式也用深色背景，显眼一点 */
+            background-image: 
+                linear-gradient(var(--paper-dark), var(--paper-dark)),
+                radial-gradient(circle, transparent 4px, var(--paper-dark) 4.5px);
+        }
+        
+        /* 拖拽时的样式 */
+        .app-item.dragging {
+            opacity: 0.5;
+            filter: drop-shadow(0 0 0 rgba(0,0,0,0)); /* 拖拽时去掉阴影优化性能 */
+        }
+
+        /* 底部 Dock */
+        .dock-bar { height: 75px; background-color: var(--bg-color); border-top: 2px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; padding: 8px 10px 0 10px; z-index: 30; border-radius: 0 0 35px 35px; }
+        .dock-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; opacity: 0.8; transition: 0.2s; width: 60px; }
+        .dock-item:hover { opacity: 1; transform: translateY(-3px); }
+        .dock-icon-box { width: 45px; height: 45px; background-color: var(--paper-dark); border: 1px solid var(--border-color); border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-bottom: 5px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); color: var(--text-main); }
+        .dock-text { font-size: 0.6rem; transform: scale(0.9); font-weight: bold; color: var(--text-dim); }
+
+        /* 模态框 */
+        .error-toast { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); background-color: var(--error-bg); color: var(--error-text); padding: 10px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 200; transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 8px; z-index: 10002; border: 2px solid #fff; }
+        .error-toast.show { top: 20px; }
+
+        /* 统一通知系统 */
+        #info-notification { 
+            position: fixed; top: -80px; left: 50%; transform: translateX(-50%); 
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.95));
+            color: #7897cc; padding: 12px 22px; border-radius: 8px; 
+            font-size: 0.85rem; font-weight: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            z-index: 10003; transition: top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; gap: 10px; 
+            backdrop-filter: blur(10px); border: 3px solid rgba(104, 104, 104, 0.2);
+            max-width: 90%;
+        }
+        #info-notification.show { top: 15px; }
+        #info-notification.error { 
+            background: linear-gradient(135deg, rgba(255, 80, 80, 0.95), rgba(255, 60, 60, 0.95));
+        }
+        #info-notification.warning { 
+            background: linear-gradient(135deg, rgba(255, 150, 80, 0.95), rgba(255, 130, 60, 0.95));
+        }
+        #info-notification.success { 
+            background: linear-gradient(135deg, rgba(80, 200, 120, 0.95), rgba(60, 180, 100, 0.95));
+        }
+        #info-notification i { font-size: 1rem; }
+
+        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); z-index: 50; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal.active { opacity: 1; pointer-events: all; }
+        .modal-content { width: 85%; background-color: var(--paper-dark); border: 2px solid var(--border-color); padding: 20px; position: relative; transform: rotate(-1deg); box-shadow: 5px 5px 0px rgba(0,0,0,0.5); border-radius: 5px; color: var(--text-main); }
+        .scrollable-content { max-height: 500px; overflow-y: auto; padding-right: 5px; }
+        .scrollable-content::-webkit-scrollbar { width: 4px; }
+        .scrollable-content::-webkit-scrollbar-thumb { background: var(--border-color); }
+        .modal-title { text-align: center; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .close-modal { position: absolute; top: -15px; right: -10px; background: #000; color: #fff; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; border: 2px solid #fff; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 101; }
+        body.light-mode .close-modal { background: #fff; color: #000; border: 2px solid #000; }
+
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 0.8rem; margin-bottom: 5px; color: var(--text-dim); font-weight: bold; }
+        .input-field { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; font-family: inherit; outline: none; border-radius: 3px; }
+        .btn { background: var(--btn-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 15px; cursor: pointer; font-family: inherit; width: 100%; margin-top: 10px; border-radius: 3px; transition: background 0.2s; font-weight: bold; }
+        .btn:hover { background: var(--btn-hover); border-color: var(--text-main); }
+        .btn-small { width: auto; padding: 0 10px; margin-top: 0; height: 38px; font-size: 0.8rem; white-space: nowrap; }
+
+        .theme-options { display: flex; gap: 15px; justify-content: center; margin-bottom: 25px; }
+        .theme-card { flex: 1; height: 80px; border: 2px solid var(--border-color); border-radius: 5px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.2s; }
+        .theme-card.night { background: #000; color: #fff; border-color: #333; }
+        .theme-card.day { background: #fff; color: #000; border-color: #000; }
+        .section-title { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px; border-left: 3px solid var(--text-main); padding-left: 8px; font-weight: bold; }
+        .font-manager-inputs { display: flex; gap: 8px; margin-bottom: 10px; }
+        .font-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 3px; background: var(--input-bg); }
+        .font-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s; }
+        .font-item.active { background: var(--paper-light); border-left: 3px solid var(--text-main); }
+        .delete-font-btn { color: var(--text-dim); padding: 5px 10px; cursor: pointer; }
+        /* API 设置模态框样式 */
+        .api-presets-section {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .api-preset-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .api-preset-input-row input {
+            flex: 1;
+        }
+        .api-preset-btn {
+            flex: 0 0 auto;
+        }
+        .api-presets-list {
+            max-height: 120px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: var(--input-bg);
+            margin-top: 8px;
+        }
+        .api-preset-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .api-preset-item:hover {
+            background: var(--paper-light);
+        }
+        .api-preset-item.active {
+            background: var(--paper-dark);
+            border-left: 3px solid #5cc976;
+            padding-left: 7px;
+            font-weight: bold;
+        }
+        .api-preset-item:last-child {
+            border-bottom: none;
+        }
+        .api-preset-delete {
+            color: #ff5555;
+            cursor: pointer;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+        .api-preset-delete:hover {
+            opacity: 1;
+        }
+        .api-settings-main {
+            display: flex;
+            gap: 15px;
+        }
+        .api-settings-form {
+            flex: 1;
+        }
+        .api-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .api-row .input-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .api-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .api-actions button {
+            flex: 1;
+        }
+        .api-preset-name-input {
+            flex: 0 0 120px;
+        }
+        /* --- 系统通用弹窗 (System Dialog) --- */
+        .sys-dialog-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 20000; /* 必须最高 */
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(3px);
+        }
+        .sys-dialog-overlay.active { opacity: 1; pointer-events: all; }
+
+        .sys-dialog-box {
+            width: 80%; background: var(--paper-dark);
+            border: 2px solid var(--text-main); border-radius: 15px;
+            padding: 20px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .sys-dialog-overlay.active .sys-dialog-box { transform: scale(1); }
+
+        .sys-dialog-title {
+            font-size: 1.1rem; font-weight: bold 10px; margin-bottom: 10px;
+            text-transform: uppercase; letter-spacing: 1px; color: var(--text-main);
+        }
+        .sys-dialog-msg {
+            font-size: 0.9rem; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4;
+        }
+
+        .sys-dialog-btns { display: flex; gap: 10px; justify-content: center; }
+        .sys-btn {
+            flex: 1; padding: 10px; border: 1px solid var(--border-color);
+            background: transparent; color: var(--text-main); border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .sys-btn:hover { background: var(--text-main); color: var(--bg-color); }
+        .sys-btn.danger { border-color: #a00; color: #a00; }
+        .sys-btn.danger:hover { background: #a00; color: #fff; }
+    
+    </style>
+</head>
+<body>
+
+    <style id="custom-font-styles"></style>
+
+    <div class="phone-container">
+        <div class="screen">
+            <div id="error-toast" class="error-toast"><i class="fas fa-exclamation-triangle"></i><span id="error-msg">连接失败</span></div>
+            <div id="info-notification"><i class="fas fa-info-circle"></i><span id="info-text">信息</span></div>
+
+            <!-- 音乐列表弹窗 -->
+            <div class="music-modal" id="music-modal">
+                <div class="input-group">
+                    <input type="text" id="add-music-name" class="music-input" placeholder="Name">
+                    <input type="text" id="add-music-artist" class="music-input" placeholder="Artist">
+                </div>
+                <div class="input-group">
+                    <input type="text" id="add-music-url" class="music-input" placeholder="MP3 URL">
+                </div>
+                <div class="input-group">
+                    <input type="text" id="add-music-cover" class="music-input" placeholder="Cover URL">
+                    <button class="music-input" style="width:40px; cursor:pointer;" onclick="addMusic()">+</button>
+                </div>
+                <div class="song-list" id="playlist-container">
+                    <!-- JS 生成 -->
+                </div>
+            </div>
+                        
+            <!-- 1. 桌面视图 -->
+            <div id="desktop-view" class="view-layer">
+                
+                <!-- 新增：编辑模式控制栏 - 屏幕底部 -->
+                <div class="edit-controls" id="edit-controls">
+                    <div class="edit-btn cancel" onclick="cancelEditMode()" title="取消"><i class="fas fa-times"></i></div>
+                    <div class="edit-btn reset" onclick="resetDesktopLayout()" title="重置"><i class="fas fa-redo"></i></div>
+                    <div class="edit-btn save" onclick="saveEditMode()" title="保存"><i class="fas fa-check"></i></div>
+                </div>
+
+                <div class="header-widget">
+                    <div class="clock-card"><div class="time" id="clock-time">00:00</div><div class="date" id="clock-date">2024.01.01 MON</div></div>
+                </div>
+                
+                <!-- 给 grid 添加了 id="app-grid-container" -->
+                <div class="app-grid" id="app-grid-container">
+                    <!-- 注意：这里去掉了 onclick，改用 JS 动态绑定，为了防止编辑时误触 -->
+                    <!-- 但为了兼容你的旧代码，我们先保持 onclick，在 JS 里拦截 -->
+                    
+                    <!-- 你的应用列表 (保持原样，或者你可以手动调整顺序) -->
+                    <div class="app-item" data-app="Whatsapp"><i class="fab fa-whatsapp app-icon"></i><span class="app-name">Whatsapp</span></div>
+                    <div class="app-item" data-app="贴吧"><i class="fas fa-layer-group app-icon"></i><span class="app-name">贴吧</span></div>
+                    <div class="app-item" data-app="购物"><i class="fas fa-shopping-bag app-icon"></i><span class="app-name">购物</span></div>
+                    <div class="app-item" data-app="直播"><i class="fas fa-video app-icon"></i><span class="app-name">直播</span></div>
+                    <div class="app-item" data-app="小游戏"><i class="fas fa-gamepad app-icon"></i><span class="app-name">小游戏</span></div>
+                    <div class="app-item" data-app="小剧场"><i class="fas fa-theater-masks app-icon"></i><span class="app-name">小剧场</span></div>
+                    <div class="app-item" data-app="约会"><i class="fas fa-calendar-check app-icon"></i><span class="app-name">约会</span></div>
+                    <div class="app-item" data-app="角色手机"><i class="fas fa-mobile-alt app-icon"></i><span class="app-name">角色手机</span></div>
+                </div>
+            </div>
+
+            <!-- 2. 全屏应用视图 -->
+            <div id="app-view" class="view-layer">
+                <div class="app-navbar">
+                    <div class="back-btn" onclick="closeApp()"><i class="fas fa-chevron-left"></i></div>
+                    <div class="app-title" id="active-app-title">应用名称</div>
+                </div>
+                <!-- 这里改成了 iframe -->
+                <div class="app-content-container" style="padding: 0; overflow: hidden;">
+                    <iframe id="app-frame" src="" frameborder="0" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部 Dock -->
+        <div class="dock-bar">
+            <div class="dock-item" onclick="openApp('角色设定')"><div class="dock-icon-box" style="transform: rotate(-3deg);"><i class="fas fa-user-tag"></i></div><span class="dock-text">设定</span></div>
+            <div class="dock-item" onclick="openApp('世界书')"><div class="dock-icon-box" style="transform: rotate(2deg);"><i class="fas fa-book-journal-whills"></i></div><span class="dock-text">世界书</span></div>
+            <div class="dock-item" onclick="openSettings('appearance')"><div class="dock-icon-box" style="transform: rotate(-1deg);"><i class="fas fa-paint-brush"></i></div><span class="dock-text">外观</span></div>
+            <div class="dock-item" onclick="openSettings('api')"><div class="dock-icon-box" style="transform: rotate(3deg); border-color: var(--text-dim);"><i class="fas fa-key"></i></div><span class="dock-text">API</span></div>
+        </div>
+
+        <!-- API 设置模态框 -->
+        <div id="api-modal" class="modal">
+            <div class="modal-content">
+                <div class="close-modal" onclick="closeModal('api-modal')">×</div>
+                <div class="scrollable-content">
+                    <h3 class="modal-title">API setting</h3>
+                    
+                    <!-- 预设管理区域 -->
+                    <div class="api-presets-section">
+                        <div class="section-title">API 预设管理</div>
+                        <div class="api-preset-input-row">
+                            <input type="text" id="api-preset-name" class="input-field api-preset-name-input" placeholder="预设名">
+                            <button class="btn btn-small api-preset-btn" onclick="saveApiPreset()"><i class="fas fa-save"></i> 保存预设</button>
+                        </div>
+                        <div class="api-presets-list" id="api-presets-list"></div>
+                    </div>
+                    
+                    <!-- API 连接设置区域 -->
+                    <div class="section-title">连接信息</div>
+                    <div class="input-group"><label>API Endpoint</label><input type="text" id="api-url" class="input-field" placeholder="https://api.openai.com/v1"></div>
+                    <div class="input-group"><label>API Key</label><input type="password" id="api-key" class="input-field" placeholder="sk-..."></div>
+                    <div class="api-row">
+                        <div class="input-group">
+                            <label>Model</label>
+                            <select id="api-model" class="input-field"></select>
+                        </div>
+                        <button class="btn btn-small" onclick="fetchModels()"><i class="fas fa-sync-alt"></i> 获取模型</button>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="api-actions">
+                        <button class="btn" onclick="saveApiSettings()"><i class="fas fa-check"></i> 保存设置</button>
+                    </div>
+                    <p id="save-msg" style="text-align: center; font-size: 0.7rem; margin-top: 10px; color: var(--text-dim); height: 1rem;"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 外观设置模态框 -->
+        <div id="appearance-modal" class="modal">
+            <div class="modal-content">
+                <div class="close-modal" onclick="closeModal('appearance-modal')">×</div>
+                <div class="scrollable-content">
+                    <h3 class="modal-title">外观风格</h3>
+                    <div class="theme-options">
+                        <div class="theme-card night" onclick="setTheme('dark')"><i class="fas fa-moon"></i><span>纯黑夜间</span></div>
+                        <div class="theme-card day" onclick="setTheme('light')"><i class="fas fa-sun"></i><span>高亮日间</span></div>
+                    </div>
+                    <div class="section-title">系统字体 (Fonts)</div>
+                    <div class="font-manager-inputs">
+                        <input type="text" id="new-font-name" class="input-field" placeholder="字体名称" style="width: 40%;">
+                        <input type="text" id="new-font-url" class="input-field" placeholder="字体URL" style="width: 60%;">
+                    </div>
+                    <button class="btn" onclick="addCustomFont()" style="margin-top: 0; margin-bottom: 15px;"><i class="fas fa-plus"></i> 导入并保存</button>
+                    <div class="font-list" id="font-list-container"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 系统通用弹窗 -->
+        <div class="sys-dialog-overlay" id="sys-dialog">
+            <div class="sys-dialog-box">
+                <div class="sys-dialog-title" id="sys-title">SYSTEM ALERT</div>
+                <div class="sys-dialog-msg" id="sys-msg">Are you sure?</div>
+                <div class="sys-dialog-btns">
+                    <button class="sys-btn" id="sys-btn-cancel" onclick="closeSysDialog()">CANCEL</button>
+                    <button class="sys-btn danger" id="sys-btn-confirm">CONFIRM</button>
+                </div>
+            </div>
+        </div>
+    
+    </div>
+
+    <script>
+        // --- 全局系统弹窗逻辑 ---
+        let confirmCallback = null;
+
+        /**
+         * 显示确认弹窗
+         * @param {string} msg - 提示消息
+         * @param {function} onConfirm - 点击确认后的回调函数
+         * @param {string} title - (可选) 标题
+         * @param {boolean} isDanger - (可选) 是否为危险操作(红色按钮)
+         */
+        window.showConfirm = function(msg, onConfirm, title = "CONFIRMATION", isDanger = true) {
+            const dialog = document.getElementById('sys-dialog');
+            document.getElementById('sys-title').textContent = title;
+            document.getElementById('sys-msg').textContent = msg;
+            
+            const confirmBtn = document.getElementById('sys-btn-confirm');
+            
+            // 设置样式
+            if(isDanger) {
+                confirmBtn.classList.add('danger');
+                confirmBtn.textContent = "ofc🍗";
+            } else {
+                confirmBtn.classList.remove('danger');
+                confirmBtn.textContent = "OK";
+            }
+
+            // 存储回调
+            confirmCallback = onConfirm;
+            
+            dialog.classList.add('active');
+        };
+
+        // 绑定确认按钮点击事件
+        document.getElementById('sys-btn-confirm').addEventListener('click', function() {
+            if (confirmCallback) confirmCallback();
+            closeSysDialog();
+        });
+
+        window.closeSysDialog = function() {
+            document.getElementById('sys-dialog').classList.remove('active');
+            confirmCallback = null;
+        };
+        
+        // --- 应用配置表：名字对应文件名 ---
+        const appRoutes = {
+            'Whatsapp': 'apps/whatsapp/whatsapp.html',
+            '贴吧': 'apps/tieba.html',
+            '购物': 'apps/shopping.html',
+            '直播': 'apps/live.html',
+            '小游戏': 'apps/game.html',
+            '小剧场': 'apps/theater.html',
+            '约会': 'apps/date.html',
+            '角色手机': 'apps/phone.html',
+            '角色设定': 'apps/settings.html',
+            '世界书': 'apps/worldbook.html'
+        };
+
+        // 打开应用
+        function openApp(appName) {
+            const desktop = document.getElementById('desktop-view');
+            const appView = document.getElementById('app-view');
+            const title = document.getElementById('active-app-title');
+            const iframe = document.getElementById('app-frame');
+
+            // 1. 设置标题
+            title.textContent = appName;
+
+            // 2. 加载对应的 HTML 文件
+            if (appRoutes[appName]) {
+                iframe.src = appRoutes[appName];
+            } else {
+                // 如果文件还没做好，可以加载一个临时的 404 页面或者空白
+                iframe.src = 'about:blank'; 
+                console.warn('未找到应用文件:', appName);
+            }
+
+            // 3. 执行动画
+            desktop.classList.add('hidden');
+            appView.classList.add('active');
+        }
+
+        // 关闭应用
+        function closeApp() {
+            const desktop = document.getElementById('desktop-view');
+            const appView = document.getElementById('app-view');
+            const iframe = document.getElementById('app-frame');
+
+            // 1. 动画返回
+            appView.classList.remove('active');
+            desktop.classList.remove('hidden');
+
+            // 2. 延迟清空 iframe，避免动画过程中白屏，同时节省资源
+            setTimeout(() => {
+                iframe.src = 'about:blank';
+            }, 400); 
+        }
+
+        function openSettings(type) {
+            if (type === 'api') {
+                document.getElementById('api-url').value = AppStorage.getString('chat_api_url');
+                document.getElementById('api-key').value = AppStorage.getString('chat_api_key');
+                // 加载预设列表
+                if (typeof renderApiPresetsList === 'function') {
+                    renderApiPresetsList();
+                }
+                document.getElementById('api-modal').classList.add('active');
+            } else if (type === 'appearance') {
+                renderFontList(); // 这个函数现在来自 settings/appearance.js
+                document.getElementById('appearance-modal').classList.add('active');
+            }
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            if(modalId === 'api-modal') document.getElementById('save-msg').textContent = '';
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            document.getElementById('clock-time').textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            document.getElementById('clock-date').textContent = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${days[now.getDay()]}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ==========================================
+        // 统一通知系统
+        // ==========================================
+        let notificationTimeout;
+        function showInfo(msg, type = 'default') {
+            const notification = document.getElementById('info-notification');
+            const text = document.getElementById('info-text');
+            const icon = notification.querySelector('i');
+            
+            // 取消之前的超时
+            if (notificationTimeout) clearTimeout(notificationTimeout);
+            
+            // 设置图标和类型
+            notification.className = '';
+            if (type === 'error') {
+                notification.classList.add('error');
+                icon.className = 'fas fa-exclamation-circle';
+            } else if (type === 'warning') {
+                notification.classList.add('warning');
+                icon.className = 'fas fa-exclamation-triangle';
+            } else if (type === 'success') {
+                notification.classList.add('success');
+                icon.className = 'fas fa-check-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            text.textContent = msg;
+            notification.classList.add('show');
+            
+            // 3秒后自动关闭
+            notificationTimeout = setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function showError(msg) {
+            const toast = document.getElementById('error-toast');
+            document.getElementById('error-msg').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // 统一的确认对话框处理函数
+        window.showConfirmOrAlert = function(message, onConfirm, title = '确认') {
+            if (typeof window.showConfirm === 'function') {
+                // 如果已定义了 showConfirm，使用它
+                window.showConfirm(message, onConfirm, title);
+            } else {
+                // 降级方案：使用原生 confirm
+                if (confirm(message)) {
+                    onConfirm();
+                }
+            }
+        };
+
+        // ==========================================
+        // 桌面图标管理系统 (长按编辑 & 拖拽)
+        // ==========================================
+        
+        const gridContainer = document.getElementById('app-grid-container');
+        let isEditMode = false;
+        let pressTimer;
+        let originalOrderHTML = ''; // 用于取消时恢复
+
+        // ==========================================
+        // 工具函数：提取重复代码
+        // ==========================================
+        
+        // 获取所有应用图标元素
+        const getAppItems = () => document.querySelectorAll('.app-item');
+        
+        // 统一的 Storage Manager - 处理 localStorage 和 JSON 转换
+        const AppStorage = {
+            get: (key, defaultValue = null) => {
+                try {
+                    const value = localStorage.getItem(key);
+                    return value ? JSON.parse(value) : defaultValue;
+                } catch(e) {
+                    console.error(`Storage.get("${key}") error:`, e);
+                    return defaultValue;
+                }
+            },
+            set: (key, value) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch(e) {
+                    console.error(`Storage.set("${key}") error:`, e);
+                }
+            },
+            remove: (key) => {
+                localStorage.removeItem(key);
+            },
+            getString: (key, defaultValue = '') => localStorage.getItem(key) || defaultValue,
+            setString: (key, value) => localStorage.setItem(key, value)
+        };
+
+        // 1. 初始化：给所有图标绑定事件 & 加载保存的顺序
+        function initDesktopIcons() {
+            // 尝试加载保存的顺序
+            const savedOrder = AppStorage.get('desktop_layout');
+            if (savedOrder && Array.isArray(savedOrder)) {
+                // 如果有保存的顺序，重新排列 DOM
+                const currentItems = Array.from(gridContainer.children);
+                const savedApps = savedOrder;
+                
+                // 清空容器
+                gridContainer.innerHTML = '';
+                
+                // 按保存的顺序添加
+                savedApps.forEach(appName => {
+                    const item = currentItems.find(el => el.getAttribute('data-app') === appName);
+                    if (item) gridContainer.appendChild(item);
+                });
+                
+                // 把没在保存列表里的新 App (如果有的话) 加到后面
+                currentItems.forEach(item => {
+                    if (!savedApps.includes(item.getAttribute('data-app'))) {
+                        gridContainer.appendChild(item);
+                    }
+                });
+            }
+
+            // 重新绑定事件
+            getAppItems().forEach(item => {
+                // 移除旧的 onclick (如果 HTML 里还留着的话)
+                item.onclick = null; 
+                
+                // 绑定交互事件（注意：触摸事件在编辑模式下会被 handleTouchStart 处理）
+                item.addEventListener('mousedown', handlePressStart);
+                item.addEventListener('touchstart', handlePressStart, {passive: false});
+                
+                item.addEventListener('click', handleClick);
+                
+                // 拖拽事件 (HTML5 Drag API - 仅桌面端)
+                item.setAttribute('draggable', 'false');
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('dragend', handleDragEnd);
+                item.addEventListener('drop', handleDrop);
+            });
+        }
+
+        // 2. 交互逻辑：点击 vs 长按
+        function handlePressStart(e) {
+            // 编辑模式下：桌面端让拖拽处理，移动端阻止事件传播
+            if (isEditMode) {
+                // 移动端：阻止触摸事件传播，让拖拽事件处理
+                if (e.type === 'touchstart') {
+                    e.stopPropagation();
+                }
+                // 桌面端：不阻止 mousedown，让 HTML5 Drag & Drop 正常工作
+                return;
+            }
+            
+            // 鼠标左键或触摸
+            if (e.type === 'mousedown' && e.button !== 0) return;
+
+            pressTimer = setTimeout(() => {
+                enterEditMode();
+            }, 800); // 800ms 长按进入编辑
+
+            const cancelPress = () => clearTimeout(pressTimer);
+            e.target.addEventListener('mouseup', cancelPress, {once:true});
+            e.target.addEventListener('mouseleave', cancelPress, {once:true});
+            e.target.addEventListener('touchend', cancelPress, {once:true});
+            e.target.addEventListener('touchmove', cancelPress, {once:true});
+        }
+
+        function handleClick(e) {
+            // 编辑模式下：阻止点击，但不影响拖拽
+            if (isEditMode) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            // 找到对应的 App 名字
+            const appName = e.currentTarget.getAttribute('data-app');
+            if (appName) openApp(appName);
+        }
+
+        // 3. 进入编辑模式
+        function enterEditMode() {
+            if (isEditMode) return;
+            isEditMode = true;
+
+            // 保存当前状态以便取消
+            originalOrderHTML = gridContainer.innerHTML;
+
+            // UI 变化
+            document.body.classList.add('is-editing');
+            document.getElementById('edit-controls').classList.add('active');
+            
+            getAppItems().forEach(item => {
+                item.classList.add('editing');
+                
+                // 桌面端：使用 HTML5 Drag & Drop API
+                if (!isTouchDevice) {
+                    item.setAttribute('draggable', 'true');
+                    // 临时移除 click 事件，避免干扰拖拽
+                    item.removeEventListener('click', handleClick);
+                }
+                
+                // 移动端：绑定触摸拖拽事件（使用 capture 确保优先处理）
+                if (isTouchDevice) {
+                    item.addEventListener('touchstart', handleTouchStart, {passive: false, capture: true});
+                    item.addEventListener('touchmove', handleTouchMove, {passive: false, capture: true});
+                    item.addEventListener('touchend', handleTouchEnd, {passive: false, capture: true});
+                }
+            });
+        }
+
+        // 4. 退出编辑模式 (保存或取消)
+        function closeEditMode() {
+            isEditMode = false;
+            document.body.classList.remove('is-editing');
+            document.getElementById('edit-controls').classList.remove('active');
+            
+            getAppItems().forEach(item => {
+                item.classList.remove('editing');
+                item.classList.remove('dragging');
+                
+                // 桌面端：禁用 HTML5 Drag & Drop，恢复 click 事件
+                if (!isTouchDevice) {
+                    item.setAttribute('draggable', 'false');
+                    // 恢复 click 事件
+                    item.addEventListener('click', handleClick);
+                }
+                
+                // 移动端：移除触摸拖拽事件
+                if (isTouchDevice) {
+                    item.removeEventListener('touchstart', handleTouchStart, {capture: true});
+                    item.removeEventListener('touchmove', handleTouchMove, {capture: true});
+                    item.removeEventListener('touchend', handleTouchEnd, {capture: true});
+                }
+            });
+            
+            // 清理拖拽状态
+            draggedItem = null;
+            touchDraggedItem = null;
+            
+            // 重新绑定事件以防 DOM 变动导致丢失
+            initDesktopIcons();
+        }
+
+        function saveEditMode() {
+            // 获取当前顺序
+            const order = Array.from(getAppItems()).map(item => item.getAttribute('data-app'));
+            AppStorage.set('desktop_layout', order);
+            
+            closeEditMode();
+            showInfo("布局已保存", 'success');
+        }
+
+        function cancelEditMode() {
+            // 恢复原来的 HTML
+            gridContainer.innerHTML = originalOrderHTML;
+            closeEditMode();
+        }
+
+        function resetDesktopLayout() {
+            // 确认重置
+            if (typeof window.showConfirm === 'function') {
+                window.showConfirm('确定要重置为默认布局吗？', () => {
+                    // 移除保存的布局
+                    localStorage.removeItem('desktop_layout');
+                    // 重新加载页面
+                    location.reload();
+                }, '重置');
+            } else {
+                if (confirm('确定要重置为默认布局吗？')) {
+                    localStorage.removeItem('desktop_layout');
+                    location.reload();
+                }
+            }
+        }
+
+        // 5. 拖拽排序逻辑
+        let draggedItem = null;
+        
+        // 检测是否为触摸设备
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        // ===== 桌面端：HTML5 Drag & Drop API =====
+        function handleDragStart(e) {
+            if (!isEditMode) return;
+            
+            // 阻止点击事件，避免拖拽时触发点击
+            e.stopPropagation();
+            
+            draggedItem = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            // 某些浏览器需要设置 data 才能拖拽
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (!isEditMode || !draggedItem) return;
+            e.preventDefault(); // 必须阻止默认行为才能 Drop
+            e.stopPropagation(); // 阻止事件冒泡
+            e.dataTransfer.dropEffect = 'move';
+
+            // 核心排序逻辑：如果拖到了别的图标上面，就交换位置
+            const target = e.target.closest('.app-item');
+            if (target && target !== draggedItem) {
+                swapItems(draggedItem, target);
+            }
+        }
+        
+        function handleDragEnd(e) {
+            // 阻止拖拽结束后的点击事件
+            e.stopPropagation();
+            this.classList.remove('dragging');
+            draggedItem = null;
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation(); // 防止浏览器打开链接等
+            return false;
+        }
+
+        // ===== 移动端：触摸拖拽实现 =====
+        let touchStartY = 0;
+        let touchStartX = 0;
+        let touchDraggedItem = null;
+        let touchStartElement = null;
+        let touchMoveThreshold = 10; // 移动阈值，避免误触
+        let isDragging = false; // 标记是否正在拖拽
+
+        function handleTouchStart(e) {
+            if (!isEditMode) return;
+            
+            const touch = e.touches[0];
+            touchStartY = touch.clientY;
+            touchStartX = touch.clientX;
+            touchStartElement = e.target.closest('.app-item');
+            
+            if (!touchStartElement) return;
+            
+            // 阻止默认行为和事件传播
+            e.preventDefault();
+            e.stopPropagation();
+            
+            touchDraggedItem = touchStartElement;
+            isDragging = false; // 重置拖拽状态
+            
+            // 震动反馈
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function handleTouchMove(e) {
+            if (!isEditMode || !touchDraggedItem) return;
+            
+            const touch = e.touches[0];
+            const deltaY = Math.abs(touch.clientY - touchStartY);
+            const deltaX = Math.abs(touch.clientX - touchStartX);
+            
+            // 如果移动距离超过阈值，才开始拖拽
+            if (!isDragging && (deltaY < touchMoveThreshold && deltaX < touchMoveThreshold)) {
+                return;
+            }
+            
+            // 标记为正在拖拽
+            if (!isDragging) {
+                isDragging = true;
+                touchDraggedItem.classList.add('dragging');
+            }
+            
+            e.preventDefault(); // 阻止页面滚动
+            e.stopPropagation();
+            
+            // 获取触摸点下的元素
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            const target = elementBelow ? elementBelow.closest('.app-item') : null;
+            
+            if (target && target !== touchDraggedItem) {
+                swapItems(touchDraggedItem, target);
+                // 更新起始位置，避免重复交换
+                touchStartY = touch.clientY;
+                touchStartX = touch.clientX;
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!isEditMode) return;
+            
+            if (touchDraggedItem) {
+                touchDraggedItem.classList.remove('dragging');
+            }
+            
+            touchDraggedItem = null;
+            touchStartElement = null;
+            isDragging = false;
+        }
+
+        // 通用的交换位置函数（桌面端和移动端共用）
+        function swapItems(dragged, target) {
+            const items = Array.from(gridContainer.children);
+            const curIndex = items.indexOf(dragged);
+            const targetIndex = items.indexOf(target);
+
+            if (curIndex < targetIndex) {
+                gridContainer.insertBefore(dragged, target.nextSibling);
+            } else {
+                gridContainer.insertBefore(dragged, target);
+            }
+        }
+        // --- 启动初始化 ---
+        setTimeout(initDesktopIcons, 100); 
+    </script>
+    <script src="others/tutorial.js"></script>
+    <script src="others/pendant.js"></script>
+    <script src="settings/appearance.js"></script>
+    <script src="settings/api.js"></script>
+    <script src="others/dynamicIsland.js"></script> 
+</body>
+</html>
