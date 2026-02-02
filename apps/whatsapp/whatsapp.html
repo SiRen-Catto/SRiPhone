@@ -32,11 +32,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <!-- 引入工具功能模块 -->
+     <!-- 引入聊天设置模块 -->
+    <script src="chatsettings.js"></script>
     <script src="tools-drawer/tools.js"></script>
     <script src="tools-drawer/voice.js"></script>
     <script src="tools-drawer/gift.js"></script>
     <script src="tools-drawer/transfer.js"></script>
     <script src="tools-drawer/location.js"></script>
+    <script src="tools-drawer/image.js"></script>
     <style>
         /* --- 变量定义 --- */
         :root {
@@ -343,6 +346,120 @@
         }
         .send-btn:active { transform: scale(0.95); opacity: 0.8; }
         
+        /* 聊天设置便签条样式 */
+        .settings-note-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 200;
+            display: none; justify-content: center; align-items: flex-start;
+            backdrop-filter: blur(8px);
+            padding-top: 50px;
+        }
+
+        .settings-note-overlay.active {
+            display: flex; animation: settingsFadeIn 0.3s;
+        }
+
+        @keyframes settingsFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .settings-note-box {
+            width: 80%; max-width: 400px;
+            background: var(--header-bg);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+            max-height: 80vh;
+            overflow: hidden;
+        }
+
+        .settings-note-header {
+            padding: 15px; border-bottom: 2px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .settings-note-header h3 {
+            margin: 0; font-size: 1.1rem; color: var(--text-main);
+            font-family: var(--font-main); font-weight: bold;
+        }
+
+        .settings-note-close {
+            font-size: 1.5rem; color: var(--text-dim); cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .settings-note-close:hover {
+            color: var(--text-main);
+        }
+
+        .settings-note-content {
+            flex: 1; padding: 15px; overflow-y: auto;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+
+        .settings-note-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .settings-note-footer {
+            padding: 15px; border-top: 2px solid var(--border);
+            display: flex; justify-content: flex-end; gap: 10px;
+        }
+
+        .settings-btn {
+            padding: 8px 20px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-main);
+            cursor: pointer; font-weight: bold; border-radius: 4px;
+            font-family: var(--font-main); font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: var(--bg-color); border-color: var(--text-main);
+        }
+
+        .settings-btn.save {
+            background: var(--accent); color: var(--bg-color);
+            border-color: var(--accent);
+        }
+
+        .settings-btn.save:hover {
+            background: var(--bg-color); color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .settings-btn.cancel:hover {
+            background: var(--danger); color: white; border-color: var(--danger);
+        }
+
+        /* 设置选项样式 */
+        .settings-item {
+            margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed var(--border);
+        }
+
+        .settings-item:last-child {
+            border-bottom: none; margin-bottom: 0;
+        }
+
+        .settings-item label {
+            display: block; font-size: 0.8rem; color: var(--text-dim);
+            margin-bottom: 5px; font-weight: bold;
+        }
+
+        .settings-item input, .settings-item select {
+            width: 100%; padding: 8px; border: 1px solid var(--border);
+            background: var(--bg-color); color: var(--text-main);
+            border-radius: 4px; font-family: var(--font-main);
+            font-size: 0.9rem; outline: none;
+        }
+
+        .settings-item input:focus, .settings-item select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+        }
+
         /* 选择模式下的底部栏 */
         .selection-bar {
             display: none; width: 100%; align-items: center; justify-content: space-between;
@@ -695,6 +812,169 @@
         .voice-detail-note {
             scrollbar-width: none; -ms-overflow-style: none;
         }
+
+        /* 图片消息弹窗样式 */
+        .image-modal-overlay {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.2); z-index: 10000;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .image-modal-overlay.active {
+            opacity: 1; pointer-events: all;
+        }
+        .image-modal {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+            width: 85%; max-width: 400px;
+            background: var(--header-bg); border-top: 2px solid var(--border);
+            border-radius: 12px 12px 0 0; transition: transform 0.2s ease;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+            max-height: 60vh;
+        }
+        .image-modal-overlay.active .image-modal {
+            transform: translateX(-50%) translateY(0);
+        }
+        .image-modal-content {
+            padding: 10px;
+        }
+        .image-inputs {
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .image-input {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px;
+            font-size: 0.8rem;
+            outline: none;
+            border-radius: 6px;
+            font-family: inherit;
+            resize: none;
+            min-height: 80px;
+            /* 隐藏滑轮 */
+            scrollbar-width: none; -ms-overflow-style: none;
+            transition: all 0.2s ease;
+        }
+        .image-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+        }
+        .image-input::-webkit-scrollbar {
+            display: none;
+        }
+        .image-send-btn {
+            width: 100%;
+            padding: 8px 16px;
+            background: var(--accent);
+            color: var(--bg-color);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .image-send-btn:active {
+            transform: scale(0.96);
+        }
+        /* 图片详情弹窗样式 */
+        .image-detail-note {
+            position: fixed; z-index: 10001;
+            background: var(--item-bg); border: 2px solid var(--border); border-radius: 10px;
+            padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 0.85rem; color: var(--text-main);
+            max-width: 85%; max-height: 60vh;
+            word-wrap: break-word;
+            overflow-y: auto;
+            opacity: 0; 
+            transition: all 0.3s ease;
+            pointer-events: none;
+            left: 0; top: 40%;
+            transform: translateX(-50%) translateY(-50%) scale(0.8);
+        }
+        .image-detail-note.active {
+            opacity: 1; 
+            transform: translateX(20px) translateY(-50%) scale(1);
+            pointer-events: all;
+        }
+        .image-detail-note::before {
+            content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 10px solid transparent;
+            border-right: 10px solid transparent; border-bottom: 10px solid var(--border);
+        }
+        .image-detail-note::after {
+            content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 9px solid transparent;
+            border-right: 9px solid transparent; border-bottom: 9px solid var(--item-bg);
+        }
+        .image-detail-note::-webkit-scrollbar {
+            display: none;
+        }
+        .image-detail-note {
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        /* --- 图片消息样式（推特敏感图片风格 - 黑白灰配色）--- */
+        .image-sensitive-box {
+            width: 100%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--bg-color); 
+            border: none;
+            border-radius: 0; 
+            cursor: pointer; 
+            transition: none;
+            position: relative;
+            overflow: hidden;
+            padding: 8px;
+        }
+
+        .image-sensitive-box::before {
+            content: '';
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0.8;
+            z-index: 1;
+        }
+
+        .image-sensitive-icon {
+            font-size: 1.5rem; 
+            color: #888; /* 改为灰色 */
+            margin-bottom: 4px; 
+            z-index: 2;
+            text-shadow: none; /* 移除红色阴影 */
+        }
+
+        .image-sensitive-warning {
+            font-size: 0.65rem; 
+            color: #666; /* 改为深灰色 */
+            font-weight: bold; 
+            text-align: center; 
+            z-index: 2;
+            text-shadow: none; /* 移除红色阴影 */
+            letter-spacing: 0.5px;
+        }
+
+        .image-sensitive-hint {
+            font-size: 0.6rem; 
+            color: #888; /* 改为浅灰色 */
+            text-align: center; 
+            z-index: 2;
+            margin-top: 2px;
+        }
+
+        /* 亮色主题下的样式调整 */
+        html.light-mode .image-sensitive-box::before {
+            opacity: 0.6;
+        }
+
+        html.light-mode .image-sensitive-icon {
+            color: #666; /* 亮色主题下用深灰色 */
+            text-shadow: none;
+        }
+
+        html.light-mode .image-sensitive-warning {
+            color: #444; /* 亮色主题下用更深的灰色 */
+            text-shadow: none;
+        }
+
     </style>
 </head>
 <body>
@@ -737,6 +1017,7 @@
                 <div class="chat-user-name" id="chat-name">Name</div>
                 <div class="chat-user-status" id="chat-status">online</div>
             </div>
+            <i class="fas fa-star" style="font-size:0.9rem; margin-right:10px; color:var(--text-main); cursor:pointer;" onclick="openChatSettings()"></i>
             <i class="fas fa-video" style="font-size:0.9rem; margin-right:10px; color:var(--text-main);"></i>
             <i class="fas fa-phone" style="font-size:0.9rem; color:var(--text-main);"></i>
         </div>
@@ -748,7 +1029,7 @@
             <div class="tool-icon" onclick="actionRegenerate()" title="Regenerate"><i class="fas fa-sync-alt"></i></div>
             <div class="tool-icon danger" onclick="toggleSelectionMode()" title="Select/Delete"><i class="fas fa-check-square"></i></div>
             <div class="tool-icon" title="Voice" onclick="openVoiceModal()"><i class="fas fa-microphone"></i></div>
-            <div class="tool-icon" title="Image"><i class="fas fa-image"></i></div>
+            <div class="tool-icon" title="Image" onclick="openImageModal()"><i class="fas fa-image"></i></div>
             <div class="tool-icon" title="Sticker"><i class="far fa-smile"></i></div>
             <div class="tool-icon" title="Location" onclick="openLocationModal()"><i class="fas fa-map-marker-alt"></i></div>
             <div class="tool-icon" title="Transfer" onclick="openTransferModal()"><i class="fas fa-money-bill-wave"></i></div>
@@ -768,6 +1049,21 @@
                 <div class="sel-btn" onclick="toggleSelectionMode()">Cancel</div>
                 <div id="sel-count" style="font-size:0.8rem;">0 selected</div>
                 <div class="sel-btn delete" onclick="deleteSelectedMessages()">Delete</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天设置便签条 -->
+    <div class="settings-note-overlay" id="settings-note-overlay" onclick="if(event.target===this) closeChatSettings()">
+        <div class="settings-note-box">
+            <div class="settings-note-header">
+                <span style="font-weight: bold; letter-spacing: 1px;">CHAT SETTINGS</span>
+                <i class="fas fa-times" onclick="closeChatSettings()" style="cursor: pointer;"></i>
+            </div>
+            <div class="settings-note-content" id="settings-note-content"></div>
+            <div class="settings-note-actions">
+                <button class="settings-note-btn" onclick="saveChatSettings()">SAVE</button>
+                <button class="settings-note-btn cancel" onclick="closeChatSettings()">CANCEL</button>
             </div>
         </div>
     </div>
@@ -821,6 +1117,23 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 图片消息弹窗 -->
+    <div class="image-modal-overlay" id="image-modal" onclick="closeImageModal()">
+        <div class="image-modal" onclick="event.stopPropagation()">
+            <div class="image-modal-content">
+                <div class="image-inputs">
+                    <textarea id="image-desc" placeholder="描述这张图片..." class="image-input" rows="4"></textarea>
+                    <button class="image-send-btn" onclick="sendImage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片详情弹窗 -->
+    <div class="image-detail-note" id="image-detail-note">
+        <strong>图片内容</strong><br><span id="image-detail-content"></span>
     </div>
 
     <!-- 转账弹窗 -->
@@ -1124,6 +1437,52 @@
                         };
                     }
                 } 
+                
+                // 检查是否是图片消息
+                else if (msg.text.startsWith('[IMAGE: ')) {
+                    const imageMatch = msg.text.match(/\[IMAGE: (.+)\]/);
+                    if (imageMatch) {
+                        const [, desc] = imageMatch;
+                        
+                        // 根据消息发送者设置样式
+                        const isThem = msg.sender === 'them';
+                        const borderColor = isThem ? '#666' : '#666'; // 改为灰色边框
+                        const bgColor = isThem ? 'transparent' : 'transparent';
+                        
+                        bubble.innerHTML = `
+                            <div class="image-sensitive-box" style="border-color: ${borderColor}; background-color: ${bgColor};">
+                                <div class="image-sensitive-icon"><i class="fas fa-eye-slash"></i></div>
+                                <div class="image-sensitive-warning">SENSITIVE</div>
+                                <div class="image-sensitive-hint">Click to view</div>
+                            </div>
+                        `;
+                        
+                        // 添加点击事件处理
+                        bubble.onclick = (e) => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(charName); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            } else {
+                                // 打开图片详情
+                                showImageDetail(desc, e);
+                            }
+                            e.stopPropagation();
+                        };
+                    } else {
+                        bubble.innerHTML = msg.text.replace(/\n/g, '<br>');
+                        bubble.onclick = () => {
+                            if (isSelectionMode) {
+                                if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+                                else selectedIndices.add(idx);
+                                renderMessages(char.name); 
+                                document.getElementById('sel-count').textContent = `${selectedIndices.size} selected`;
+                            }
+                        };
+                    }
+                }
+
                 // 检查是否是转账消息
                 else if (msg.text.startsWith('[TRANSFER: ')) {
                     const transferMatch = msg.text.match(/\[TRANSFER: ([^,]+), (.+)\]/);

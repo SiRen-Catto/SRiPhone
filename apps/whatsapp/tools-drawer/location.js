@@ -26,5 +26,4 @@ function sendLocation() {
     // 发送消息
     pushUserMessage();
     const char = getCharacters()[activeChatIndex];
-    triggerAIResponse(char);
 }
